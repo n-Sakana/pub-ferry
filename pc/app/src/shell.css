@@ -1,0 +1,411 @@
+/* Desktop layout. The component set and the tokens are shared; what is here is
+   only how this product arranges them on a wide screen.
+
+   The column count is decided per screen rather than once for the app, because
+   the screens have different main objects:
+
+     選ぶ / 受け取り中 / 確かめる   two columns — a list or a picture on the
+                                    left, the decision on the right
+     表示中                         ONE column plus a narrow rail. The code is a
+                                    square optical component being read by a
+                                    camera across a desk, so every pixel taken
+                                    from it is a pixel of margin the reader
+                                    loses. A second column here would be
+                                    "using the width" at the cost of the one
+                                    thing the screen exists to do.
+     完了 / 失敗 / 設定             a measure-width column. Prose set 1100px
+                                    wide is not "using the width", it is
+                                    unreadable. */
+
+@import "../../../shared/design/tokens.css";
+@import "../../../shared/design/base.css";
+
+.screen {
+  display: block;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* A column of prose or a short form. Centred rather than left-aligned: a
+   620px column pinned to the left of a 1400px window leaves a hole on the
+   right that reads as a missing panel, while symmetric margins read as a
+   deliberate measure. */
+.narrow {
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/* ---- direction indicator ------------------------------------------------
+   Which way the bytes are moving, in three redundant channels: a two-word
+   summary, the order of the nodes, and a mark on the one that is here. Never
+   colour alone. */
+
+.direction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.direction[hidden] {
+  display: none;
+}
+
+.direction-summary {
+  flex: none;
+  font-size: var(--text-meta-size);
+  font-weight: var(--weight-bold);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.direction-path {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.direction-node {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.direction-node[data-here="true"] {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.direction-node::before {
+  content: "○";
+  font-size: 10px;
+}
+
+.direction-node[data-here="true"]::before {
+  content: "●";
+  color: var(--accent);
+}
+
+.direction-arrow {
+  color: var(--text-muted);
+}
+
+/* ---- entry cards: pick exactly one thing to do -------------------------- */
+
+.entry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-3);
+  max-width: 980px;
+}
+
+/* A screen whose whole content is two cards.
+   Left at the top of a 800px-tall window, the two cards occupy the first
+   quarter and the remaining three quarters are an empty grey field — which
+   reads as a page that failed to finish loading rather than as a choice.
+   Centring the choice in the space it has is what makes it look deliberate. */
+.screen--choice {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-4);
+  min-height: 100%;
+  padding-bottom: var(--space-8);
+}
+
+.screen--choice > * {
+  width: 100%;
+  max-width: 980px;
+}
+
+.screen--choice .screen-head {
+  min-height: auto;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+/* Hover is transient and must not read as "already chosen". A blue-bordered,
+   blue-tinted card sitting next to a disabled sibling looks like a decision
+   that has already been made; the selection tint is reserved for selection. */
+.entry:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.entry:disabled {
+  border-color: var(--border-subtle);
+  background: var(--surface-sunken);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.entry-glyph {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.entry:disabled .entry-glyph {
+  background: var(--surface-sunken);
+  color: var(--text-disabled);
+}
+
+.entry-glyph svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.entry-body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.entry-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-title-size);
+  font-weight: var(--weight-bold);
+}
+
+.entry-note {
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+  line-height: var(--line-relaxed);
+}
+
+.entry-tag {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--text-meta-size);
+  font-weight: var(--weight-medium);
+}
+
+.entry-tag[data-tone="quiet"] {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+/* ---- two-column screens -------------------------------------------------- */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side-w);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.split-main {
+  min-width: 0;
+}
+
+.split-side {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Below this the side column is narrower than its own content, so it goes
+   under the main one instead of squeezing both. */
+@media (max-width: 1000px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.3em;
+  color: var(--text-sub);
+  font-size: var(--text-meta-size);
+  line-height: var(--line-relaxed);
+}
+
+.steps li + li {
+  margin-top: var(--space-1);
+}
+
+.path {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  color: var(--text-sub);
+  overflow-wrap: anywhere;
+}
+
+/* ---- the sending stage ---------------------------------------------------
+   The code takes the height it can get, and the rail is a fixed 250px beside
+   it. `min-height: 0` on the grid child is what lets the square actually
+   shrink to the row rather than overflowing it. */
+
+.screen--stage {
+  height: 100%;
+}
+
+/* The same rail width as every other screen in the flow. It was 250px here and
+   340px on the screens either side, so the right-hand column jumped 90px
+   between consecutive steps of one task — the layout moving under the reader
+   for no reason they could see. */
+.stage-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--side-w);
+  gap: var(--space-5);
+  align-items: start;
+  min-height: 0;
+}
+
+.stage-holder {
+  display: grid;
+  justify-items: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.stage-rail {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .stage-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- the frame grid for one-at-a-time reading ---------------------------
+   Both a picture and a list of numbers: the grid shows how far along this is
+   at a glance, and the numbers under it are what somebody actually reads out
+   to the person holding the other screen. A grid alone means counting cells. */
+
+.frame-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+/* Round, so they cannot be mistaken for the app's buttons — nothing here is
+   clickable. A frame that has NOT arrived is the only thing on this screen the
+   operator can act on, so it is drawn strongest, not faintest. Grey would also
+   mean "cannot be operated", which is not what "not yet read" means. */
+.frame-cell {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--caution);
+  border-radius: var(--radius-pill);
+  background: var(--caution-soft);
+  color: var(--caution-text);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.frame-cell[data-state="have"] {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.frame-cell[data-state="have"]::after {
+  content: "✓";
+  position: absolute;
+  transform: translate(9px, -9px);
+  font-size: 9px;
+}
+
+.frame-cell[data-state="bad"] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+/* Hover is transient and must not read as "already chosen": a tinted, blue-
+   bordered card next to a disabled one looks like a decision that has already
+   been made. Selection tint is reserved for actual selection. */
+.entry:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+/* ---- misc ---------------------------------------------------------------- */
+
+.viewfinder {
+  max-width: 720px;
+}
+
+.figure + .figure-unit {
+  margin-left: 4px;
+}
+
+#send-error:empty,
+#camera-error:empty,
+#confirm-error:empty,
+#reader-error:empty {
+  display: none;
+}
+
+#send-error,
+#camera-error,
+#confirm-error,
+#reader-error {
+  margin-top: var(--space-3);
+}
+
+/* A hint that is actually a blocker. Grey helper text next to a destination
+   that cannot be written to is the same weight as "multiple files are sent in
+   one go" — and one of those two stops a transfer. */
+.note--blocking {
+  color: var(--danger-text);
+  font-weight: var(--weight-medium);
+}
+
+.note--blocking::before {
+  content: "！ ";
+}

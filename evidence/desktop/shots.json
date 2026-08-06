@@ -1,0 +1,107 @@
+{
+  "shots": [
+    {
+      "name": "01-home",
+      "what": "入口（送る／受け取るの二択）",
+      "size": "1180x800 相当",
+      "file": "01-home.png"
+    },
+    {
+      "name": "02-send-pick-empty",
+      "what": "送る・まだ何も選んでいない（主操作は操作不能＋理由）",
+      "size": "1180x800 相当",
+      "file": "02-send-pick-empty.png"
+    },
+    {
+      "name": "02b-send-pick-chosen",
+      "what": "送る・フォルダーを選んだ（件数・合計・所要目安）",
+      "size": "1180x800 相当",
+      "file": "02b-send-pick-chosen.png"
+    },
+    {
+      "name": "02c-send-showing",
+      "what": "送る・表示中（コードが主役、右は細いレール）",
+      "size": "1180x800 相当",
+      "file": "02c-send-showing.png"
+    },
+    {
+      "name": "02d-send-done",
+      "what": "送る・表示を終えた（完了とは言わない）",
+      "size": "1180x800 相当",
+      "file": "02d-send-done.png"
+    },
+    {
+      "name": "03-settings",
+      "what": "設定（保存先・呼び名・トグル・読み取り機）",
+      "size": "1180x800 相当",
+      "file": "03-settings.png"
+    },
+    {
+      "name": "04-receive-choose",
+      "what": "受け取り方の選択（このPCはカメラなし）",
+      "size": "1180x800 相当",
+      "file": "04-receive-choose.png"
+    },
+    {
+      "name": "05-camera-none",
+      "what": "カメラなし（警告色にしない／リーダーへ誘導）",
+      "size": "1180x800 相当",
+      "file": "05-camera-none.png"
+    },
+    {
+      "name": "06-camera-denied",
+      "what": "カメラ拒否（復旧手順つき）",
+      "size": "1180x800 相当",
+      "file": "06-camera-denied.png"
+    },
+    {
+      "name": "07-reader-empty",
+      "what": "リーダー受信・まだ 1 枚も読んでいない",
+      "size": "1180x800 相当",
+      "file": "07-reader-empty.png"
+    },
+    {
+      "name": "08-reader-partial",
+      "what": "リーダー受信・欠番あり（番号を名指し）",
+      "size": "1180x800 相当",
+      "file": "08-reader-partial.png"
+    },
+    {
+      "name": "09-confirm",
+      "what": "中身を確かめて保存",
+      "size": "1180x800 相当",
+      "file": "09-confirm.png"
+    },
+    {
+      "name": "10-narrow-receive-choose",
+      "what": "狭いウィンドウ（最小幅）",
+      "size": "900x680 相当（狭幅）",
+      "file": "10-narrow-receive-choose.png"
+    },
+    {
+      "name": "11-narrow-send-pick",
+      "what": "狭いウィンドウ・送る（2 カラムが 1 カラムに落ちる）",
+      "size": "900x680 相当（狭幅）",
+      "file": "11-narrow-send-pick.png"
+    },
+    {
+      "name": "12-scale125-send-pick",
+      "what": "送る・選ぶ（表示倍率 125% 相当）",
+      "size": "125% 相当（1366x768 の実機）",
+      "file": "12-scale125-send-pick.png"
+    },
+    {
+      "name": "12-scale125-receive-choose",
+      "what": "受け取り方の選択（表示倍率 125% 相当）",
+      "size": "125% 相当（1366x768 の実機）",
+      "file": "12-scale125-receive-choose.png"
+    },
+    {
+      "name": "12-scale125-settings",
+      "what": "設定（表示倍率 125% 相当）",
+      "size": "125% 相当（1366x768 の実機）",
+      "file": "12-scale125-settings.png"
+    }
+  ],
+  "consoleProblems": []
+}

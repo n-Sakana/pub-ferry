@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Decimen Transfer</title>
+    <link rel="stylesheet" href="/src/shell.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">この画面の中身へ移動</a>
+
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">DT</span>
+          <span>
+            <span class="brand-name">Decimen Transfer</span>
+            <span class="brand-sub" id="brand-device">この PC</span>
+          </span>
+        </div>
+
+        <!-- The direction indicator. Always here, always the same shape, so
+             "which way is this going" is never a question. -->
+        <div class="direction" id="direction" aria-live="polite">
+          <span class="direction-summary" id="direction-summary">送る</span>
+          <ol class="direction-path" id="direction-path"></ol>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="btn-icon" type="button" id="open-settings" title="設定" aria-label="設定">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"></path>
+            </svg>
+          </button>
+          <button class="btn-icon" type="button" id="toggle-theme" title="配色を切り替える" aria-label="配色を切り替える">
+            <svg viewBox="0 0 24 24" aria-hidden="true" id="theme-glyph">
+              <path d="M18 15A7.5 7.5 0 0 1 9 6a7 7 0 1 0 9 9Z"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+
+      <main class="main" id="main" tabindex="-1">
+        <!-- ===================== 入口 ===================== -->
+        <section class="screen screen--choice" id="screen-home">
+          <div class="screen-head">
+            <h1 class="screen-title">何をしますか</h1>
+            <p class="screen-note">一度の転送です。同期ではありません。</p>
+          </div>
+          <div class="entry-grid">
+            <button class="entry" type="button" data-go="send-pick">
+              <span class="entry-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"></path><path d="M8 8h3v3H8zM13 8h3v3h-3zM8 13h3v3H8zM13 13h3"></path></svg>
+              </span>
+              <span class="entry-body">
+                <span class="entry-title">送る</span>
+                <span class="entry-note">ファイルやフォルダーを、この画面のコードで相手に渡します。</span>
+              </span>
+            </button>
+            <button class="entry" type="button" data-go="receive-choose">
+              <span class="entry-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 7h4l2-2h6l2 2h4v12H3z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+              </span>
+              <span class="entry-body">
+                <span class="entry-title">受け取る</span>
+                <span class="entry-note">相手の画面のコードを読み取って、決めた場所へ保存します。</span>
+              </span>
+            </button>
+          </div>
+          <p class="note" id="home-destination"></p>
+        </section>
+
+        <!-- ===================== 送る・選ぶ ===================== -->
+        <section class="screen" id="screen-send-pick" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title">送るものを選ぶ</h1>
+            <p class="screen-note" id="send-limit"></p>
+          </div>
+          <div class="split">
+            <div class="split-main">
+              <div class="card">
+                <p class="card-title">送るもの</p>
+                <div class="pick-actions">
+                  <button class="btn-secondary" type="button" id="pick-files">ファイルを選ぶ</button>
+                  <button class="btn-secondary" type="button" id="pick-folder">フォルダーを選ぶ</button>
+                </div>
+                <p class="note">フォルダーを選ぶと、その中のファイルがまとめて 1 回で送られます。</p>
+              </div>
+              <div id="pick-summary" hidden>
+                <div class="card">
+                  <p class="card-title" id="pick-title">選んだもの</p>
+                  <div class="metrics">
+                    <div><div class="metric-label">ファイル数</div><div class="metric-value" id="pick-count">—</div></div>
+                    <div><div class="metric-label">合計</div><div class="metric-value" id="pick-size">—</div></div>
+                    <div><div class="metric-label">かかる目安</div><div class="metric-value" id="pick-time">—</div></div>
+                  </div>
+                  <p class="note" id="pick-skipped" hidden></p>
+                </div>
+                <details class="disclosure" id="pick-list-box">
+                  <summary>中身の一覧<span class="disclosure-count" id="pick-list-count"></span></summary>
+                  <div class="disclosure-body"><div class="file-list" id="pick-list"></div></div>
+                </details>
+              </div>
+              <div id="send-error"></div>
+            </div>
+            <aside class="split-side">
+              <div class="card">
+                <p class="card-title">送り方</p>
+                <div class="field">
+                  <label class="field-label" for="tx-speed">1 秒あたりの枚数</label>
+                  <select id="tx-speed">
+                    <option value="10">10 枚（いちばん読みやすい）</option>
+                    <option value="15">15 枚</option>
+                    <option value="24" selected>24 枚（標準）</option>
+                    <option value="30">30 枚</option>
+                  </select>
+                  <p class="field-hint">相手が読みにくいときは減らします。</p>
+                </div>
+                <div class="field" style="margin-top: var(--space-4)">
+                  <label class="field-label" for="tx-density">1 枚あたりの量</label>
+                  <select id="tx-density">
+                    <option value="1000">少なめ（遠くからでも読める）</option>
+                    <option value="1465" selected>標準</option>
+                    <option value="2331">多め</option>
+                    <option value="2953">最大（近くで読むとき）</option>
+                  </select>
+                  <p class="field-hint">多いほど速く、そのぶん読み取りは繊細になります。</p>
+                </div>
+              </div>
+              <div class="card">
+                <p class="card-title">相手側の準備</p>
+                <ol class="steps">
+                  <li>相手の端末で「受け取る」を開く</li>
+                  <li>カメラをこの画面に向ける</li>
+                  <li>相手の画面に「保存しました」が出るまで、この画面は消さない</li>
+                </ol>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ===================== 送る・表示中 ===================== -->
+        <section class="screen screen--stage" id="screen-send-show" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title">この画面を相手のカメラに見せてください</h1>
+            <p class="screen-head-end" id="send-shown"></p>
+          </div>
+          <div class="stage-layout">
+            <div class="stage-holder">
+              <div class="stage" id="send-stage"><canvas id="send-canvas" aria-label="転送用のコード"></canvas></div>
+              <p class="stage-caption" id="send-caption"></p>
+            </div>
+            <aside class="stage-rail">
+              <div class="card">
+                <p class="card-title">相手側でやること</p>
+                <ol class="steps">
+                  <li>「受け取る」→「カメラで読み取る」</li>
+                  <li>画面全体が映るところまで下がる</li>
+                  <li>「保存しました」が出たら終わり</li>
+                </ol>
+              </div>
+              <div class="alert" data-tone="warn" id="stage-warning" hidden>
+                <p class="alert-title">ウィンドウが小さすぎます</p>
+                <p class="alert-body" id="stage-warning-body"></p>
+              </div>
+              <div class="card">
+                <p class="card-title">この転送</p>
+                <div class="metrics">
+                  <div><div class="metric-label">名前</div><div class="metric-value" id="show-label">—</div></div>
+                  <div><div class="metric-label">ファイル数</div><div class="metric-value" id="show-count">—</div></div>
+                </div>
+                <p class="note">
+                  このツールは、相手が受け取れたかどうかを知ることができません。
+                  相手の画面で確かめてください。
+                </p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ===================== 送る・終了後 ===================== -->
+        <section class="screen" id="screen-send-done" hidden>
+          <div class="screen-head"><h1 class="screen-title">表示を終わりました</h1></div>
+          <div class="narrow">
+            <div class="alert" data-tone="warn">
+              <p class="alert-title">受け取れたかどうかは、この画面ではわかりません</p>
+              <p class="alert-body">
+                画面からカメラへの一方通行なので、相手からの返事は届きません。
+                相手の画面に「保存しました」が出ていることを確かめてください。
+              </p>
+            </div>
+            <div class="card">
+              <p class="card-title">表示した内容</p>
+              <div class="metrics">
+                <div><div class="metric-label">名前</div><div class="metric-value" id="done-label">—</div></div>
+                <div><div class="metric-label">ファイル数</div><div class="metric-value" id="done-count">—</div></div>
+                <div><div class="metric-label">表示した枚数</div><div class="metric-value" id="done-frames">—</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== 受け取る・方法を選ぶ ===================== -->
+        <section class="screen screen--choice" id="screen-receive-choose" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title">受け取り方を選ぶ</h1>
+            <p class="screen-note">どちらでも、保存先は同じです。</p>
+          </div>
+          <div class="entry-grid">
+            <button class="entry" type="button" id="start-camera">
+              <span class="entry-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 7h4l2-2h6l2 2h4v12H3z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+              </span>
+              <span class="entry-body">
+                <span class="entry-title">カメラで読み取る<span class="entry-tag" id="camera-tag" hidden></span></span>
+                <span class="entry-note">相手の画面に映るコードを、動画のまま読み続けます。速いのはこちらです。</span>
+              </span>
+            </button>
+            <button class="entry" type="button" id="start-reader">
+              <span class="entry-glyph" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 5v14M8 5v14M12 5v14M16 5v14M20 5v14"></path></svg>
+              </span>
+              <span class="entry-body">
+                <span class="entry-title">読み取り機で 1 枚ずつ読む<span class="entry-tag" id="reader-tag" hidden></span></span>
+                <span class="entry-note">手持ちの二次元コードリーダーで、表示された順に 1 枚ずつ読みます。少量向けです。</span>
+              </span>
+            </button>
+          </div>
+          <p class="note" id="camera-absent" hidden></p>
+          <p class="note">
+            一次元のバーコードリーダーでは読めません。二次元コード（QR）に対応した機種が必要です。
+          </p>
+        </section>
+
+        <!-- ===================== 受け取る・カメラ ===================== -->
+        <section class="screen" id="screen-receive-camera" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title" id="camera-title">相手の画面にカメラを向けてください</h1>
+            <p class="screen-head-end" id="camera-mode"></p>
+          </div>
+          <div class="split">
+            <div class="split-main">
+              <div class="viewfinder" id="viewfinder">
+                <video id="camera-video" playsinline muted></video>
+                <div class="viewfinder-placeholder" id="camera-placeholder">
+                  <p>カメラを準備しています…</p>
+                </div>
+              </div>
+              <div id="camera-error"></div>
+            </div>
+            <aside class="split-side">
+              <div class="card" id="camera-progress">
+                <p class="card-title">受け取り中</p>
+                <p><span class="figure" id="camera-percent">0</span><span class="figure-unit">%</span></p>
+                <div class="metrics" style="margin-top: var(--space-3)">
+                  <div><div class="metric-label">残り</div><div class="metric-value" id="camera-eta">—</div></div>
+                  <div><div class="metric-label">読めた枚数</div><div class="metric-value" id="camera-frames">—</div></div>
+                  <div><div class="metric-label">大きさ</div><div class="metric-value" id="camera-size">—</div></div>
+                </div>
+                <p class="note" id="camera-hint"></p>
+              </div>
+              <div id="camera-detail">
+                <details class="disclosure">
+                  <summary>詳しい数値</summary>
+                  <div class="disclosure-body">
+                    <div class="metrics">
+                      <div><div class="metric-label">1 秒あたり</div><div class="metric-value" id="camera-rate">—</div></div>
+                      <div><div class="metric-label">カメラ</div><div class="metric-value" id="camera-settings">—</div></div>
+                    </div>
+                  </div>
+                </details>
+                <div class="card">
+                  <p class="card-title">保存先</p>
+                  <p class="path" id="camera-destination"></p>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ===================== 受け取る・リーダー ===================== -->
+        <section class="screen" id="screen-receive-reader" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title">コードを 1 枚ずつ読み取ってください</h1>
+            <p class="screen-head-end" id="reader-source-label"></p>
+          </div>
+          <div class="split">
+            <div class="split-main">
+              <div class="card">
+                <p class="card-title">読み取りの状況</p>
+                <p><span class="figure" id="reader-count">0</span><span class="figure-unit" id="reader-total">枚</span></p>
+                <div class="frame-grid" id="reader-grid" aria-label="読み取りの状況"></div>
+                <p class="note" id="reader-missing">まだ 1 枚も読み取っていません。</p>
+              </div>
+              <div id="reader-error"></div>
+            </div>
+            <aside class="split-side">
+              <div class="card">
+                <p class="card-title">読み取り機からの入力</p>
+                <div class="field">
+                  <label class="field-label" for="reader-input">ここにフォーカスしたまま読み取ってください</label>
+                  <input
+                    id="reader-input"
+                    type="text"
+                    autocomplete="off"
+                    autocapitalize="off"
+                    autocorrect="off"
+                    spellcheck="false"
+                    inputmode="latin"
+                    lang="en"
+                    placeholder="読み取ると自動で入ります" />
+                  <p class="field-hint">
+                    日本語入力（IME）は切ってください。読み取り機がキーボードとして文字を打つため、
+                    かなに変換されると読み取れません。
+                  </p>
+                </div>
+                <p class="note" id="reader-status"></p>
+              </div>
+              <div class="card">
+                <p class="card-title">送る側でやること</p>
+                <ol class="steps">
+                  <li>1 枚目のコードを表示する</li>
+                  <li>読み取ったら次のコードに進む</li>
+                  <li>足りない番号があれば、その番号を表示してもらう</li>
+                </ol>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ===================== 受け取る・確かめて保存 ===================== -->
+        <section class="screen" id="screen-receive-confirm" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title">中身を確かめて保存する</h1>
+            <p class="screen-head-end">中身は確かめ済みです</p>
+          </div>
+          <div class="split">
+            <div class="split-main">
+              <div class="card">
+                <p class="card-title" id="confirm-label">受け取ったもの</p>
+                <div class="metrics">
+                  <div><div class="metric-label">ファイル数</div><div class="metric-value" id="confirm-count">—</div></div>
+                  <div><div class="metric-label">合計</div><div class="metric-value" id="confirm-size">—</div></div>
+                  <div><div class="metric-label">中身の確認</div><div class="metric-value" id="confirm-verified">—</div></div>
+                </div>
+              </div>
+              <details class="disclosure" open>
+                <summary>中身の一覧<span class="disclosure-count" id="confirm-list-count"></span></summary>
+                <div class="disclosure-body"><div class="file-list" id="confirm-list"></div></div>
+              </details>
+              <div id="confirm-error"></div>
+            </div>
+            <aside class="split-side">
+              <div class="card">
+                <p class="card-title">保存先</p>
+                <p class="path" id="confirm-destination">—</p>
+                <button class="btn-secondary" type="button" id="change-destination" style="margin-top: var(--space-3)">
+                  保存先を変える
+                </button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- ===================== 保存しました ===================== -->
+        <section class="screen" id="screen-saved" hidden>
+          <div class="screen-head"><h1 class="screen-title">保存しました</h1></div>
+          <div class="narrow">
+            <div class="alert" data-tone="done">
+              <p class="alert-title">受け取った内容は、送られたものと一致しています</p>
+              <p class="alert-body" id="saved-summary"></p>
+            </div>
+            <div class="card">
+              <p class="card-title">保存した場所</p>
+              <p class="path" id="saved-path">—</p>
+              <p class="note">受け取ったファイルはこのアプリでは開きません。フォルダーだけを開きます。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== 失敗 ===================== -->
+        <section class="screen" id="screen-failed" hidden>
+          <div class="screen-head"><h1 class="screen-title" id="failed-title">受け取れませんでした</h1></div>
+          <div class="narrow">
+            <div class="alert" data-tone="error">
+              <p class="alert-title" id="failed-headline">—</p>
+              <p class="alert-body" id="failed-body">—</p>
+              <ol class="alert-recovery" id="failed-steps"></ol>
+            </div>
+            <div class="card">
+              <p class="card-title">保存したもの</p>
+              <p id="failed-saved">なし（1 件も保存していません）</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================== 設定 ===================== -->
+        <section class="screen" id="screen-settings" hidden>
+          <div class="screen-head">
+            <h1 class="screen-title">設定</h1>
+            <p class="screen-note">この PC だけの設定です。</p>
+          </div>
+          <div class="narrow">
+            <div class="card">
+              <p class="card-title">保存先</p>
+              <p class="path" id="settings-destination">—</p>
+              <p class="note" id="settings-destination-state"></p>
+              <button class="btn-secondary" type="button" id="settings-change-destination" style="margin-top: var(--space-3)">
+                保存先を選ぶ
+              </button>
+            </div>
+
+            <div class="card">
+              <p class="card-title">この PC の呼び名</p>
+              <div class="field">
+                <label class="field-label" for="settings-label">画面上部に表示されます</label>
+                <input id="settings-label" type="text" maxlength="40" />
+              </div>
+            </div>
+
+            <div class="card">
+              <p class="card-title">受け取ったときの動き</p>
+              <div class="switch-row">
+                <div>
+                  <div class="switch-label">保存の前に中身を見せる</div>
+                  <div class="switch-state" id="state-confirm"></div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="settings-confirm" />
+                  <span class="switch-track"></span>
+                  <span class="switch-word" id="word-confirm"></span>
+                </label>
+              </div>
+              <div class="switch-row">
+                <div>
+                  <div class="switch-label">同じ名前があったとき</div>
+                  <div class="switch-state" id="state-replace"></div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="settings-replace" />
+                  <span class="switch-track"></span>
+                  <span class="switch-word" id="word-replace"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <p class="card-title">読み取り機</p>
+              <div class="segmented" role="radiogroup" aria-label="読み取り機からの入力">
+                <label>
+                  <input type="radio" name="reader-source" value="keyboard" checked />
+                  キーボードとして受け取る
+                </label>
+                <label>
+                  <input type="radio" name="reader-source" value="serial" />
+                  COM ポートから受け取る
+                </label>
+              </div>
+              <p class="note" id="reader-source-note"></p>
+              <div class="field" id="serial-fields" style="margin-top: var(--space-4)" hidden>
+                <label class="field-label" for="settings-port">COM ポート</label>
+                <select id="settings-port"></select>
+                <p class="field-hint" id="serial-hint"></p>
+              </div>
+            </div>
+
+            <div class="card">
+              <p class="card-title">記録</p>
+              <p class="note">ログには、いつ何が起きたかだけを書きます。ファイルの中身や名前は書きません。</p>
+              <button class="btn-secondary" type="button" id="open-logs" style="margin-top: var(--space-3)">
+                ログのフォルダーを開く
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="actionbar">
+        <button class="btn-secondary" type="button" id="action-back" hidden>戻る</button>
+        <p class="actionbar-status">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">はじめに、送るか受け取るかを選びます</span>
+        </p>
+        <div class="actionbar-actions">
+          <button class="btn-secondary" type="button" id="action-alt" hidden></button>
+          <button class="btn-primary" type="button" id="action-main" hidden></button>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

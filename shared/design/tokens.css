@@ -1,0 +1,255 @@
+/* Design tokens — the whole visual vocabulary of the transfer tool.
+   ================================================================
+
+   Where these come from: MacroStudio and App Studio were read as built
+   products, and the DIRECTION was taken from them — a light canvas with white
+   cards, one blue accent doing all the emphasis, a three-step type scale, a
+   4px spacing grid, two corner radii, two shadows, and a density that is calm
+   rather than cramped. What was NOT taken is their screen structure, their
+   component set or their colour values: this product has a different job and
+   states its own numbers here.
+
+   Four rules hold for everything below, and every screen is checked against
+   them:
+
+   1. TYPE IS THREE STEPS. --text-title, --text-body, --text-meta. Emphasis is
+      weight and colour, never a fourth size. One deliberate exception:
+      --text-figure, for the single number a transfer's progress is, because a
+      figure meant to be read from across a desk cannot be the size of the
+      sentence next to it.
+
+   2. GREY MEANS "YOU CANNOT USE THIS". An optional control is fully usable, so
+      it keeps normal text, a normal border and a normal background; that it is
+      optional is said in words and in where it sits. There is no --text-optional.
+
+   3. NOTHING MEANS ANYTHING IN COLOUR ALONE. Every tone token below is paired
+      with a word or an icon wherever it is used.
+
+   4. ONE ACCENT. --accent is the single thing to do on a screen. A second
+      "look at me" treatment is how a screen ends up with two primary buttons. */
+
+:root {
+  color-scheme: light;
+
+  /* ---- raw palette (light) ---------------------------------------------
+     Named by what they are. Screens never use these; they use the semantic
+     tokens below, so a theme change is one block and not a search. */
+  --l-gray-0: #ffffff;
+  --l-gray-1: #fafbfd;
+  --l-gray-2: #f3f5f8;
+  --l-gray-3: #e9edf2;
+  --l-gray-4: #dfe5ec;
+  --l-gray-5: #cdd6df;
+  --l-gray-6: #aebbc7;
+  --l-gray-7: #94a3b2;
+  --l-gray-8: #5b6b7b;
+  --l-gray-9: #3b4a5a;
+  --l-gray-10: #1d2733;
+  --l-blue-0: #eff5fa;
+  --l-blue-1: #dfebf4;
+  --l-blue-2: #9dc3dc;
+  --l-blue-3: #16628f;
+  --l-blue-4: #114f74;
+  --l-blue-5: #10506f;
+  --l-green-0: #e4f2e9;
+  --l-green-1: #c6e3d1;
+  --l-green-3: #2e7d4f;
+  --l-green-4: #23663f;
+  --l-amber-0: #fbf1de;
+  --l-amber-1: #f0dcb2;
+  --l-amber-3: #9a6b12;
+  --l-amber-4: #7a5410;
+  --l-red-0: #fbeaec;
+  --l-red-1: #f0c9ce;
+  --l-red-3: #b23a46;
+  --l-red-4: #93303b;
+  --l-shadow-1: 0 1px 2px rgba(21, 31, 43, 0.07);
+  --l-shadow-2: 0 2px 6px rgba(21, 31, 43, 0.08), 0 12px 28px rgba(21, 31, 43, 0.1);
+  --l-overlay: rgba(29, 39, 51, 0.44);
+
+  /* ---- raw palette (dark) ---------------------------------------------- */
+  --d-gray-0: #0e1116;
+  --d-gray-1: #12161c;
+  --d-gray-2: #171c23;
+  --d-gray-3: #1b2129;
+  --d-gray-4: #222932;
+  --d-gray-5: #29313b;
+  --d-gray-6: #343d49;
+  --d-gray-7: #47525f;
+  --d-gray-8: #5e6a78;
+  --d-gray-9: #8c98a6;
+  --d-gray-10: #aab5c2;
+  --d-gray-11: #c8d1db;
+  --d-gray-12: #e8edf3;
+  --d-blue-0: #16283a;
+  --d-blue-1: #1c3a52;
+  --d-blue-2: #7cb4d8;
+  --d-blue-3: #2e79a8;
+  --d-blue-4: #3a8bbd;
+  --d-blue-5: #8cc2e4;
+  --d-green-0: #1a2c22;
+  --d-green-1: #2c4736;
+  --d-green-3: #3f9163;
+  --d-green-4: #7fc79c;
+  --d-amber-0: #2e2618;
+  --d-amber-1: #4a3d22;
+  --d-amber-3: #b58a3c;
+  --d-amber-4: #e0bd77;
+  --d-red-0: #332024;
+  --d-red-1: #52313a;
+  --d-red-3: #c2545f;
+  --d-red-4: #eb99a2;
+  --d-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --d-shadow-2: 0 2px 8px rgba(0, 0, 0, 0.5), 0 16px 32px rgba(0, 0, 0, 0.45);
+  --d-overlay: rgba(0, 0, 0, 0.62);
+
+  /* ---- semantic colour (light is the default) -------------------------- */
+  --canvas: var(--l-gray-2);
+  --surface: var(--l-gray-0);
+  --surface-sunken: var(--l-gray-3);
+  --surface-hover: var(--l-gray-1);
+  --surface-selected: var(--l-blue-0);
+  --text: var(--l-gray-10);
+  --text-sub: var(--l-gray-9);
+  --text-muted: var(--l-gray-8);
+  /* Used for one thing: a control that cannot be operated right now. */
+  --text-disabled: var(--l-gray-7);
+  --text-on-accent: var(--l-gray-0);
+  --border: var(--l-gray-5);
+  --border-subtle: var(--l-gray-4);
+  --border-strong: var(--l-gray-6);
+  --accent: var(--l-blue-3);
+  --accent-hover: var(--l-blue-4);
+  --accent-soft: var(--l-blue-1);
+  --accent-text: var(--l-blue-5);
+  --success: var(--l-green-3);
+  --success-text: var(--l-green-4);
+  --success-soft: var(--l-green-0);
+  --success-line: var(--l-green-1);
+  --caution: var(--l-amber-3);
+  --caution-text: var(--l-amber-4);
+  --caution-soft: var(--l-amber-0);
+  --caution-line: var(--l-amber-1);
+  --danger: var(--l-red-3);
+  --danger-text: var(--l-red-4);
+  --danger-soft: var(--l-red-0);
+  --danger-line: var(--l-red-1);
+  --focus-color: var(--l-blue-2);
+  --ring-inset: var(--l-gray-0);
+  --shadow-1: var(--l-shadow-1);
+  --shadow-2: var(--l-shadow-2);
+  --overlay: var(--l-overlay);
+  /* The area a QR code is painted on is always physically white with black
+     modules, in both themes — it is an optical signal, not decoration. */
+  --code-paper: #ffffff;
+  --code-ink: #000000;
+
+  --focus-ring: 0 0 0 2px var(--ring-inset), 0 0 0 4px var(--focus-color);
+
+  /* ---- type ------------------------------------------------------------
+     No font files are bundled. The PWA has to install and work offline over a
+     phone connection, and a 5 MB Japanese webfont is the single biggest thing
+     that could be in it. The stack below is the Japanese UI face each platform
+     already has, in the order each platform prefers. */
+  --font-ui:
+    "Yu Gothic UI", "Yu Gothic", "Hiragino Sans", "Noto Sans JP", Meiryo,
+    "Segoe UI", system-ui, sans-serif;
+  --font-mono:
+    "Cascadia Mono", Consolas, "SF Mono", "Roboto Mono", ui-monospace, monospace;
+
+  --text-title-size: 17px;
+  --text-body-size: 14px;
+  --text-meta-size: 12px;
+  /* The exception. One per screen at most. */
+  --text-figure-size: 34px;
+  --text-mono-size: 13px;
+
+  --line-tight: 1.35;
+  --line-normal: 1.5;
+  --line-relaxed: 1.7;
+
+  --weight-regular: 400;
+  --weight-medium: 600;
+  --weight-bold: 700;
+
+  /* ---- space: 4px grid, eight steps ------------------------------------ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
+  /* ---- radius: two and a pill ------------------------------------------ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-pill: 999px;
+
+  /* ---- fixed metrics ----------------------------------------------------
+     Stated here rather than per screen. A row that is a few pixels shorter on
+     one screen than another is what "cheap" looks like from across a desk. */
+  --topbar-h: 48px;
+  --screen-header-h: 56px;
+  --actionbar-h: 68px;
+  --progress-track-h: 4px;
+  --row-h: 40px;
+  --btn-h: 40px;
+  --btn-h-sm: 32px;
+  --field-h: 36px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --brand-mark: 28px;
+  /* The side panel on desktop. Wide enough for a file list with a size column
+     and narrow enough that the code stays the biggest thing on screen. */
+  --side-w: 340px;
+  --side-w-wide: 400px;
+  /* Reading measure for a column of prose or a form. */
+  --measure: 620px;
+
+  --opacity-disabled: 0.45;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --transition-fast: 130ms var(--ease-out);
+  --transition-normal: 200ms var(--ease-out);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: var(--d-gray-1);
+  --surface: var(--d-gray-3);
+  --surface-sunken: var(--d-gray-0);
+  --surface-hover: var(--d-gray-4);
+  --surface-selected: var(--d-blue-0);
+  --text: var(--d-gray-12);
+  --text-sub: var(--d-gray-11);
+  --text-muted: var(--d-gray-10);
+  --text-disabled: var(--d-gray-8);
+  --text-on-accent: #ffffff;
+  --border: var(--d-gray-6);
+  --border-subtle: var(--d-gray-5);
+  --border-strong: var(--d-gray-7);
+  --accent: var(--d-blue-3);
+  --accent-hover: var(--d-blue-4);
+  --accent-soft: var(--d-blue-0);
+  --accent-text: var(--d-blue-5);
+  --success: var(--d-green-3);
+  --success-text: var(--d-green-4);
+  --success-soft: var(--d-green-0);
+  --success-line: var(--d-green-1);
+  --caution: var(--d-amber-3);
+  --caution-text: var(--d-amber-4);
+  --caution-soft: var(--d-amber-0);
+  --caution-line: var(--d-amber-1);
+  --danger: var(--d-red-3);
+  --danger-text: var(--d-red-4);
+  --danger-soft: var(--d-red-0);
+  --danger-line: var(--d-red-1);
+  --focus-color: var(--d-blue-2);
+  --ring-inset: var(--d-gray-3);
+  --shadow-1: var(--d-shadow-1);
+  --shadow-2: var(--d-shadow-2);
+  --overlay: var(--d-overlay);
+}

@@ -1,0 +1,148 @@
+{
+  "shots": [
+    {
+      "name": "iphone-se-01-pair-empty",
+      "what": "登録前（コード入力）",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-01-pair-empty.png"
+    },
+    {
+      "name": "iphone-se-02-pair-filled",
+      "what": "登録コードを入力した状態",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-02-pair-filled.png"
+    },
+    {
+      "name": "iphone-se-03-home",
+      "what": "中継トップ（どちらへ渡すか）",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-03-home.png"
+    },
+    {
+      "name": "iphone-se-04-outbox",
+      "what": "母艦の送信待ち一覧",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-04-outbox.png"
+    },
+    {
+      "name": "iphone-se-05-display",
+      "what": "連続コードを表示中（内→外）",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-05-display.png"
+    },
+    {
+      "name": "iphone-se-06-display-done",
+      "what": "表示を終えた（完了とは言わない）",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-06-display-done.png"
+    },
+    {
+      "name": "iphone-se-07-capture",
+      "what": "カメラ経路の実状態（この環境には擬似カメラが無いため、カメラなしの表示になります）",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-07-capture.png"
+    },
+    {
+      "name": "iphone-se-08-camera-denied",
+      "what": "カメラ拒否（復旧手順つき）",
+      "size": "375×667（iPhone SE 相当）",
+      "file": "iphone-se-08-camera-denied.png"
+    },
+    {
+      "name": "pixel-01-pair-empty",
+      "what": "登録前（コード入力）",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-01-pair-empty.png"
+    },
+    {
+      "name": "pixel-02-pair-filled",
+      "what": "登録コードを入力した状態",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-02-pair-filled.png"
+    },
+    {
+      "name": "pixel-03-home",
+      "what": "中継トップ（どちらへ渡すか）",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-03-home.png"
+    },
+    {
+      "name": "pixel-04-outbox",
+      "what": "母艦の送信待ち一覧",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-04-outbox.png"
+    },
+    {
+      "name": "pixel-05-display",
+      "what": "連続コードを表示中（内→外）",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-05-display.png"
+    },
+    {
+      "name": "pixel-06-display-done",
+      "what": "表示を終えた（完了とは言わない）",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-06-display-done.png"
+    },
+    {
+      "name": "pixel-07-capture",
+      "what": "カメラ経路の実状態（この環境には擬似カメラが無いため、カメラなしの表示になります）",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-07-capture.png"
+    },
+    {
+      "name": "pixel-08-camera-denied",
+      "what": "カメラ拒否（復旧手順つき）",
+      "size": "412×915（Android 標準相当）",
+      "file": "pixel-08-camera-denied.png"
+    },
+    {
+      "name": "narrow-01-pair-empty",
+      "what": "登録前（コード入力）",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-01-pair-empty.png"
+    },
+    {
+      "name": "narrow-02-pair-filled",
+      "what": "登録コードを入力した状態",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-02-pair-filled.png"
+    },
+    {
+      "name": "narrow-03-home",
+      "what": "中継トップ（どちらへ渡すか）",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-03-home.png"
+    },
+    {
+      "name": "narrow-04-outbox",
+      "what": "母艦の送信待ち一覧",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-04-outbox.png"
+    },
+    {
+      "name": "narrow-05-display",
+      "what": "連続コードを表示中（内→外）",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-05-display.png"
+    },
+    {
+      "name": "narrow-06-display-done",
+      "what": "表示を終えた（完了とは言わない）",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-06-display-done.png"
+    },
+    {
+      "name": "narrow-07-capture",
+      "what": "カメラ経路の実状態（この環境には擬似カメラが無いため、カメラなしの表示になります）",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-07-capture.png"
+    },
+    {
+      "name": "narrow-08-camera-denied",
+      "what": "カメラ拒否（復旧手順つき）",
+      "size": "320×568（いちばん狭い実機相当）",
+      "file": "narrow-08-camera-denied.png"
+    }
+  ]
+}

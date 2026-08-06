@@ -1,0 +1,227 @@
+/* The phone layout.
+   ==================
+
+   A different layout, not the desktop one squeezed. The desktop app puts a
+   list beside a decision; a phone has room for one column and a thumb, so
+   everything is a stack, the primary action is pinned above the home
+   indicator, and the tap targets are 44px or more.
+
+   The tokens and the component set are the same as the desktop app's, which is
+   the point of having them: the two products look like one product without
+   sharing a single screen. */
+
+@import "../../../shared/design/tokens.css";
+@import "../../../shared/design/base.css";
+
+/* The bottom padding is a whole action bar plus a gap. Without it the last
+   element ends exactly at the bar and a notice that continues below the fold
+   looks like the end of the page — which is how the one safety caveat in this
+   product ("you cannot tell whether it was received") got cut mid-sentence. */
+.main {
+  padding: var(--space-4) var(--space-4) calc(var(--actionbar-h) + var(--space-4));
+}
+
+/* On a short phone the code has to give way, or the caveat under it never
+   fits. It is still the biggest thing on the screen. */
+@media (max-height: 700px) {
+  .screen--stage .stage {
+    max-height: 58vh;
+  }
+
+  .screen--stage .stage canvas {
+    max-height: 100%;
+    width: auto;
+  }
+}
+
+.actionbar {
+  padding: var(--space-3) var(--space-4);
+  /* Above the home indicator on a notched phone, not under it. */
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  gap: var(--space-3);
+}
+
+.topbar {
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(var(--topbar-h) + env(safe-area-inset-top));
+}
+
+/* The direction indicator gets its own row here rather than sitting in the top
+   bar: on a 360px screen there is no room beside the product name, and this is
+   the one thing that must never be truncated. */
+/* Wraps rather than scrolls. This is the one thing on the page that must never
+   be cut off: a truncated last stop is exactly the case where somebody cannot
+   tell whether the transfer is going out or coming in, and getting that
+   backwards is the most expensive mistake this product allows. Two lines on a
+   320px screen is a fine price for that. */
+.direction {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+}
+
+.direction-path {
+  flex-wrap: wrap;
+}
+
+.direction[hidden] {
+  display: none;
+}
+
+.direction-summary {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--text-meta-size);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+
+.direction-path {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.direction-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-meta-size);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.direction-node[data-here="true"] {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.direction-node::before {
+  content: "○";
+  font-size: 10px;
+}
+
+.direction-node[data-here="true"]::before {
+  content: "●";
+  color: var(--accent);
+}
+
+.direction-node[data-done="true"]::before {
+  content: "✓";
+  color: var(--success);
+}
+
+.direction-arrow {
+  color: var(--text-muted);
+}
+
+/* Tappable rows. 56px minimum, because a 40px row designed for a mouse is a
+   row a thumb misses. */
+.entry {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entry:disabled {
+  border-color: var(--border-subtle);
+  background: var(--surface-sunken);
+  color: var(--text-disabled);
+}
+
+.entry-body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.entry-title {
+  display: block;
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-bold);
+  line-height: var(--line-tight);
+}
+
+.entry-note {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+  line-height: var(--line-relaxed);
+}
+
+.entry-end {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-meta-size);
+}
+
+.card + .card,
+.choice-list + .card,
+.card + .choice-list,
+.viewfinder + .card {
+  margin-top: var(--space-3);
+}
+
+/* The code fills the width and stays square. On a phone this IS the screen —
+   the rail the desktop app puts beside it goes underneath instead. */
+.screen--stage .stage {
+  padding: var(--space-3);
+}
+
+.stage canvas {
+  width: 100%;
+  height: auto;
+}
+
+.viewfinder {
+  aspect-ratio: 3 / 4;
+}
+
+.path,
+code {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-size);
+  overflow-wrap: anywhere;
+}
+
+#capture-error:empty,
+#deliver-error:empty,
+#pair-error:empty,
+#home-notice:empty {
+  display: none;
+}
+
+#capture-error,
+#deliver-error,
+#pair-error,
+#home-notice {
+  margin-top: var(--space-3);
+}
+
+/* Wide phones and small tablets: the stack gets a measure so lines do not
+   run to 700 characters. */
+@media (min-width: 640px) {
+  .main > .screen {
+    max-width: 560px;
+    margin-inline: auto;
+  }
+}
