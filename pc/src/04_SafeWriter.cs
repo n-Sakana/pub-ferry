@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Decimen
+namespace PubTransfer
 {
     // Turning a verified transfer into files on this machine.
     //
@@ -153,7 +153,7 @@ namespace Decimen
             string root = Path.GetFullPath(destinationRoot);
             string staging = Path.Combine(
                 root,
-                ".decimen-incoming-" + Guid.NewGuid().ToString("N").Substring(0, 12));
+                ".pub-transfer-incoming-" + Guid.NewGuid().ToString("N").Substring(0, 12));
 
             long written = 0;
             int count = 0;

@@ -13,12 +13,12 @@
 # else touches a window, and -Width/-Height are then given in the same
 # device-independent pixels WPF uses, converted here.
 #
-#   tools\capture-window.ps1 -Title "Decimen Transfer" -Out shot.png
-#   tools\capture-window.ps1 -Title "Decimen Transfer" -Width 1180 -Height 800 -Out shot.png
+#   tools\capture-window.ps1 -Title "Pub Transfer" -Out shot.png
+#   tools\capture-window.ps1 -Title "Pub Transfer" -Width 1180 -Height 800 -Out shot.png
 
 [CmdletBinding()]
 param(
-    [string]$Title = 'Decimen Transfer',
+    [string]$Title = 'Pub Transfer',
     [string]$Out = '',
     # Device-independent pixels, the same units the window declares.
     [int]$Width = 0,
@@ -32,8 +32,8 @@ param(
 $ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch { }
 
-if (-not ('Decimen.Win32' -as [type])) {
-    Add-Type -Namespace Decimen -Name Win32 -MemberDefinition @'
+if (-not ('PubTransfer.Win32' -as [type])) {
+    Add-Type -Namespace PubTransfer -Name Win32 -MemberDefinition @'
 [StructLayout(LayoutKind.Sequential)]
 public struct RECT { public int Left, Top, Right, Bottom; }
 
@@ -65,13 +65,13 @@ public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
 
 # Before System.Drawing or System.Windows.Forms are loaded, and before any
 # window is measured.
-[void][Decimen.Win32]::SetProcessDPIAware()
+[void][PubTransfer.Win32]::SetProcessDPIAware()
 
 Add-Type -AssemblyName System.Drawing
 
-$dc = [Decimen.Win32]::GetDC([IntPtr]::Zero)
-$dpi = [Decimen.Win32]::GetDeviceCaps($dc, 88)  # LOGPIXELSX
-[void][Decimen.Win32]::ReleaseDC([IntPtr]::Zero, $dc)
+$dc = [PubTransfer.Win32]::GetDC([IntPtr]::Zero)
+$dpi = [PubTransfer.Win32]::GetDeviceCaps($dc, 88)  # LOGPIXELSX
+[void][PubTransfer.Win32]::ReleaseDC([IntPtr]::Zero, $dc)
 if ($dpi -le 0) { $dpi = 96 }
 $scale = $dpi / 96.0
 
@@ -94,8 +94,8 @@ if ($handle -eq [IntPtr]::Zero) {
 }
 
 function Get-Rect {
-    $rect = New-Object Decimen.Win32+RECT
-    if (-not [Decimen.Win32]::GetWindowRect($handle, [ref]$rect)) {
+    $rect = New-Object PubTransfer.Win32+RECT
+    if (-not [PubTransfer.Win32]::GetWindowRect($handle, [ref]$rect)) {
         Write-Error 'ウィンドウの位置を取得できませんでした。'
         exit 3
     }
@@ -106,14 +106,14 @@ if ($Width -gt 0 -and $Height -gt 0) {
     $rect = Get-Rect
     $x = if ($Left -ge 0) { [int]($Left * $scale) } else { $rect.Left }
     $y = if ($Top -ge 0) { [int]($Top * $scale) } else { $rect.Top }
-    [void][Decimen.Win32]::MoveWindow(
+    [void][PubTransfer.Win32]::MoveWindow(
         $handle, $x, $y, [int]($Width * $scale), [int]($Height * $scale), $true)
     Start-Sleep -Milliseconds $SettleMs
 }
 
 if ($Activate) {
-    [void][Decimen.Win32]::ShowWindow($handle, 9)  # SW_RESTORE
-    [void][Decimen.Win32]::SetForegroundWindow($handle)
+    [void][PubTransfer.Win32]::ShowWindow($handle, 9)  # SW_RESTORE
+    [void][PubTransfer.Win32]::SetForegroundWindow($handle)
     Start-Sleep -Milliseconds 250
 }
 

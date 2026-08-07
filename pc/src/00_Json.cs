@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Web.Script.Serialization;
 
-namespace Decimen
+namespace PubTransfer
 {
     // A thin, total reader over JavaScriptSerializer's object graph.
     //

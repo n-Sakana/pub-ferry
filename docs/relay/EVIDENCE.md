@@ -80,7 +80,7 @@ WebView2 ウィンドウの実コントロールを操作し、そのページ�
 画面を直したら、両方とも撮り直してからこの索引を作り直してください。
 
 ```
-powershell -File pc\decimen.ps1 -DebugPort 9333
+powershell -File pc\pub-transfer.ps1 -DebugPort 9333
 node --import tsx tools/drive-desktop.ts evidence/desktop
 node --import tsx tools/drive-phone.ts evidence/phone
 node --import tsx tools/make-evidence-index.ts

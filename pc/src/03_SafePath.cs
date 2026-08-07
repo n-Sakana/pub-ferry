@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Decimen
+namespace PubTransfer
 {
     // The same rules as shared/relative-path.ts, restated here.
     //

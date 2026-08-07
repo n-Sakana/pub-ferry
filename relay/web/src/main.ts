@@ -25,7 +25,7 @@ import { RelayClient, RelayRequestError, pairWithHost, type RelayCredentials } f
 import type { RelayOutboxItem, RelayRoute } from "../../../shared/relay-contract";
 
 const FRAME_SIZES = [1000, 1465, 2331, 2953];
-const STORAGE_KEY = "decimen.relay.credentials";
+const STORAGE_KEY = "pub-transfer.relay.credentials";
 
 type ScreenName =
   | "home"
@@ -681,7 +681,7 @@ void boot();
 
 // For the automated screen tests. Puts the page into states that need a host
 // or a camera this machine does not have, through the page's own code paths.
-(window as unknown as { __decimen: unknown }).__decimen = {
+(window as unknown as { __pubTransfer: unknown }).__pubTransfer = {
   show,
   goHome,
   setDirection,

@@ -1,24 +1,24 @@
-# Decimen の受信ホスト（Linux VPS 用）
+# Pub Transfer の受信ホスト（Linux VPS 用）
 #
 # tailscaled より後に起動する。起動直後の tailscaled はまだアドレスを
 # 答えないことがあり、そのとき relay は「アドレスが取れない」で終了する
 # ——設計どおりに、0.0.0.0 へ落ちるかわりに。だから再試行が要る。
 #
-#   sudo cp relay/systemd/decimen-relay.service /etc/systemd/system/
+#   sudo cp relay/systemd/pub-transfer-relay.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable --now decimen-relay
+#   sudo systemctl enable --now pub-transfer-relay
 
 [Unit]
-Description=Decimen optical transfer relay host
-Documentation=file:///opt/decimen/docs/relay/SETUP.md
+Description=Pub Transfer optical transfer relay host
+Documentation=file:///opt/pub-transfer/docs/relay/SETUP.md
 After=network-online.target tailscaled.service
 Wants=network-online.target tailscaled.service
 
 [Service]
 Type=simple
-User=decimen
-Group=decimen
-WorkingDirectory=/opt/decimen
+User=pub-transfer
+Group=pub-transfer
+WorkingDirectory=/opt/pub-transfer
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/npm run relay -- serve
 Restart=on-failure
@@ -35,7 +35,7 @@ ProtectSystem=strict
 ProtectHome=false
 # The relay writes exactly two places: its own configuration and state, and the
 # folders its owner registered as receive routes. Everything else is read-only.
-ReadWritePaths=/home/decimen/.config/decimen /srv/decimen-inbox
+ReadWritePaths=/home/pub-transfer/.config/pub-transfer /srv/pub-transfer-inbox
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

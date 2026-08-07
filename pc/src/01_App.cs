@@ -6,7 +6,7 @@ using System.Threading;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 
-namespace Decimen
+namespace PubTransfer
 {
     // Entry point. Its whole job is to fail understandably: by the time
     // MainWindow runs, WebView2 is known to be present and the assemblies are
@@ -14,7 +14,7 @@ namespace Decimen
     // than a missing prerequisite.
     public static class App
     {
-        public const string ProductName = "Decimen Transfer";
+        public const string ProductName = "Pub Transfer";
         public static string BaseDir;
 
         [STAThread]
@@ -29,7 +29,7 @@ namespace Decimen
             {
                 string wanted = new AssemblyName(args.Name).Name;
 
-                // decimen.ps1 loads the WebView2 assemblies from their bytes so
+                // pub-transfer.ps1 loads the WebView2 assemblies from their bytes so
                 // that a Mark of the Web on a downloaded copy cannot block the
                 // load. That leaves them outside the default binding context,
                 // so hand back the copy already loaded rather than loading a

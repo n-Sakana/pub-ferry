@@ -1,4 +1,4 @@
-# Decimen Optical Transfer: fountain-coded QR file transfer
+# Pub Transfer: fountain-coded QR file transfer
 
 > **このリポジトリは fork です。**
 > 上流 [bashalarmistalt/decimen-optical-transfer](https://github.com/bashalarmistalt/decimen-optical-transfer)
@@ -11,7 +11,16 @@
 > 二次元コードリーダーで一枚ずつ読むモード。
 >
 > **→ 使い方・設計・検証: [docs/relay/](docs/relay/README.md)**
-> **→ すぐ試す: `pc\decimen.bat` をダブルクリック**
+> **→ すぐ試す: `pc\pub-transfer.bat` をダブルクリック**
+>
+> **実機で未確認のこと** — 開発した機械にカメラ・二次元コードリーダー・
+> 物理スマートフォンが無いため、次の 3 つは**実物では通していません**:
+> ①実カメラでの受信、②物理リーダー（HID / COM）からの入力、
+> ③実機スマートフォンでの中継。いずれもコード経路は自動テストと
+> 実アプリ操作で通していますが、それは実機確認の代わりにはなりません。
+> 何をどう確かめれば済むかを含め、[docs/relay/UNVERIFIED.md](docs/relay/UNVERIFIED.md)
+> に受入手順つきで書いてあります。Tailscale の複数端末間も、
+> アドレス取得と bind までは実機で確認済み、端末間の実転送は未確認です。
 >
 > ---
 
@@ -23,11 +32,16 @@ The payload travels as light.
 
 ## Try it
 
-### **→ [decimen.app](https://decimen.app/)**
+### **→ [decimen.app](https://decimen.app/)** — upstream's hosted site
 
 Open it on both devices and go — nothing to install. Works offline after the
 first visit, and installs as an app on both iOS and Android if you want it on
 a home screen.
+
+That site is run by the upstream author and serves the three pages below, not
+this fork's additions. To use what this fork adds, run it from this repository
+(`pc\pub-transfer.bat`, or the relay host — see
+[docs/relay/SETUP.md](docs/relay/SETUP.md)).
 
 Files up to 64 MB (or a pasted text snippet), filename and media type
 preserved, gzip only when it helps, SHA-256 verified before anything is

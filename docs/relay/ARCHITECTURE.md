@@ -40,8 +40,8 @@ relay ホストも一緒に動かす、というだけの違い。
 
 | 層 | 実体 | 置き場所 |
 |---|---|---|
-| 起動口 | `decimen.bat`（薄い） | `pc/decimen.bat` |
-| 起動・構成・ビルド・ログ | PowerShell | `pc/decimen.ps1` |
+| 起動口 | `pub-transfer.bat`（薄い） | `pc/pub-transfer.bat` |
+| 起動・構成・ビルド・ログ | PowerShell | `pc/pub-transfer.ps1` |
 | OS 統合・ウィンドウ・保存 | C#（WPF + WebView2） | `pc/src/*.cs` |
 | 画面 | 共有 TS/CSS | `pc/app/`, `relay/web/` |
 | 共有コア | TypeScript | `shared/` |

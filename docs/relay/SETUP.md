@@ -9,7 +9,7 @@
 **必要なもの**: Windows 10/11、Microsoft Edge WebView2 ランタイム（大抵すでに入っています）。
 
 1. エクスプローラーで `pc` フォルダーを開く
-2. **`decimen.bat` をダブルクリック**
+2. **`pub-transfer.bat` をダブルクリック**
 
 初回は画面の組み立てに 1 分ほどかかります（Node.js が必要です。無い場合は
 その旨が表示されます）。二回目以降はすぐ開きます。
@@ -41,8 +41,8 @@ npm install
 npm run relay -- init
 ```
 
-`%LOCALAPPDATA%\Decimen\relay\config.json`（Windows）または
-`~/.config/decimen/relay/config.json`（Linux）ができます。
+`%LOCALAPPDATA%\PubTransfer\relay\config.json`（Windows）または
+`~/.config/pub-transfer/relay/config.json`（Linux）ができます。
 
 ### 3. 証明書を用意する
 
@@ -71,7 +71,7 @@ npm run relay -- dev-cert
 フォルダーを一覧することはできません。
 
 ```
-npm run relay -- route add "受信箱" "D:\decimen\受信箱"
+npm run relay -- route add "受信箱" "D:\pub-transfer\受信箱"
 npm run relay -- route list
 ```
 
@@ -104,7 +104,7 @@ bind しただけでは「自分だけが触れる」ことにはなりません
 // 例: スマホのタグからだけ 8842 に届くようにする
 {
   "acls": [
-    { "action": "accept", "src": ["tag:phone"], "dst": ["tag:decimen-host:8842"] }
+    { "action": "accept", "src": ["tag:phone"], "dst": ["tag:pub-transfer-host:8842"] }
   ]
 }
 ```
@@ -116,10 +116,10 @@ Windows では初回に Defender ファイアウォールの確認が出ます�
 ## Linux VPS で常駐させる
 
 ```
-sudo cp relay/systemd/decimen-relay.service /etc/systemd/system/
+sudo cp relay/systemd/pub-transfer-relay.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now decimen-relay
-sudo systemctl status decimen-relay
+sudo systemctl enable --now pub-transfer-relay
+sudo systemctl status pub-transfer-relay
 ```
 
 ユニットは `tailscaled` の後に起動し、失敗しても間を置いて再試行します
@@ -154,13 +154,13 @@ npm run relay -- status     # 設定と状態
 
 ```
 # 実アプリを起動してデバッグポートを開く
-powershell -File pc\decimen.ps1 -DebugPort 9333
+powershell -File pc\pub-transfer.ps1 -DebugPort 9333
 
 # 別のターミナルから実ウィンドウを操作してキャプチャー
 node --import tsx tools/drive-desktop.ts evidence/desktop
 
 # スマホ画面（実 relay ホストを立てて操作）
-$env:DECIMEN_CHROMIUM = "<chrome.exe のパス>"
+$env:PUB_TRANSFER_CHROMIUM = "<chrome.exe のパス>"
 node --import tsx tools/drive-phone.ts evidence/phone
 ```
 

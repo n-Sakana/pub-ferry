@@ -1,4 +1,4 @@
-﻿# Decimen Transfer — launcher and orchestration.
+﻿# Pub Transfer — launcher and orchestration.
 #
 # This script owns everything between "somebody double-clicked something" and
 # "the window is up": checking the prerequisites, fetching the WebView2
@@ -64,11 +64,11 @@ function Write-Problem {
 function Write-LauncherLog {
     param([string]$Level, [string]$Message)
     try {
-        $logDir = Join-Path $env:LOCALAPPDATA 'Decimen\pc\logs'
+        $logDir = Join-Path $env:LOCALAPPDATA 'PubTransfer\pc\logs'
         if (-not (Test-Path -LiteralPath $logDir -PathType Container)) {
             New-Item -ItemType Directory -Path $logDir -Force | Out-Null
         }
-        $logPath = Join-Path $logDir ('decimen_' + (Get-Date -Format 'yyyyMMdd') + '.log')
+        $logPath = Join-Path $logDir ('pub-transfer_' + (Get-Date -Format 'yyyyMMdd') + '.log')
         $line = '[' + (Get-Date -Format 'HH:mm:ss') + '] [' + $Level + '] ' + $Message
         # HostServices.WriteLog appends UTF-8 with no byte order mark. Match it
         # so the daily log never grows one in the middle.
@@ -244,19 +244,19 @@ try {
     }
 
     if ($DebugPort -gt 0) {
-        $env:DECIMEN_DEBUG_PORT = [string]$DebugPort
+        $env:PUB_TRANSFER_DEBUG_PORT = [string]$DebugPort
         Write-Line "試験用のデバッグポートを開きます: $DebugPort"
     }
     if ($FakeVideo) {
         if (-not (Test-Path -LiteralPath $FakeVideo -PathType Leaf)) {
             throw "指定された映像ファイルがありません: $FakeVideo"
         }
-        $env:DECIMEN_FAKE_VIDEO = (Resolve-Path -LiteralPath $FakeVideo).Path
-        Write-Line "カメラの代わりに映像ファイルを使います: $env:DECIMEN_FAKE_VIDEO"
+        $env:PUB_TRANSFER_FAKE_VIDEO = (Resolve-Path -LiteralPath $FakeVideo).Path
+        Write-Line "カメラの代わりに映像ファイルを使います: $env:PUB_TRANSFER_FAKE_VIDEO"
     }
 
     Write-LauncherLog 'INFO' ('start (webview2 ' + $runtime + ')')
-    [Decimen.App]::Run($baseDir)
+    [PubTransfer.App]::Run($baseDir)
     exit 0
 }
 catch {

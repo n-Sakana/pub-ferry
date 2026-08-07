@@ -210,7 +210,7 @@ async function boot(): Promise<void> {
     showFailure(
       "この画面はアプリの中で開いてください",
       "ファイルを選ぶ・保存する操作は、アプリ本体が行います。ブラウザーだけでは動きません。",
-      ["pc\\decimen.bat をダブルクリックして起動してください。"],
+      ["pc\\pub-transfer.bat をダブルクリックして起動してください。"],
     );
     return;
   }
@@ -1036,7 +1036,7 @@ function message(error: unknown): string {
 }
 
 function applyStoredTheme(): void {
-  const stored = localStorage.getItem("decimen.theme");
+  const stored = localStorage.getItem("pub-transfer.theme");
   if (stored === "dark" || stored === "light") {
     document.documentElement.dataset.theme = stored;
   }
@@ -1045,15 +1045,15 @@ function applyStoredTheme(): void {
 function toggleTheme(): void {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
-  localStorage.setItem("decimen.theme", next);
+  localStorage.setItem("pub-transfer.theme", next);
 }
 
 void boot();
 
 // Exposed so the automated screen tests can put the real window into a state
 // that needs hardware this machine does not have. Reachable only through the
-// DevTools protocol, which decimen.ps1 opens only when asked.
-(window as unknown as { __decimen: unknown }).__decimen = {
+// DevTools protocol, which pub-transfer.ps1 opens only when asked.
+(window as unknown as { __pubTransfer: unknown }).__pubTransfer = {
   show: (name: ScreenName) => show(name),
   goto,
   readerLine: acceptReaderLine,

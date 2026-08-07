@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO.Ports;
 using System.Text;
 
-namespace Decimen
+namespace PubTransfer
 {
     // The handheld 2D code reader, on a serial port.
     //

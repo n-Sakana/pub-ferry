@@ -1,6 +1,6 @@
 # 実装計画 — 光学ファイル転送の実用化
 
-対象リポジトリ: `decimen-optical-transfer`（fork）
+対象リポジトリ: `pub-transfer`（`decimen-optical-transfer` の fork）
 上流: `bashalarmistalt/decimen-optical-transfer` @ `29cba8f`（v0.3.0）
 
 この文書は「何を作るか」と「なぜその形か」を決める。設計の詳細と脅威境界は
@@ -104,15 +104,15 @@ VPS と Windows で **同じ実装**を使う。役割は「受信先」と「�
 - `relay/store.ts` — 受信ルートの登録簿、outbox、一時領域、原子的確定
 - `relay/config.ts` — 設定の読み書きと検証。不備は理由付きで **起動失敗**
 - `relay/cli.ts` — `pair` / `route add` / `outbox add` / `serve` / `status`
-- `relay/systemd/decimen-relay.service` — VPS 常駐用
+- `relay/systemd/pub-transfer-relay.service` — VPS 常駐用
 
 ### 4.3 PC デスクトップアプリ（`pc/`）
 
 系統1 / 系統2 で **同じ**アプリ。参照2製品と同じ層構成に揃える。
 
 ```
-pc/decimen.bat      薄い起動口（ワンクリック）
-pc/decimen.ps1      起動・構成・ビルド・ログのオーケストレーション
+pc/pub-transfer.bat      薄い起動口（ワンクリック）
+pc/pub-transfer.ps1      起動・構成・ビルド・ログのオーケストレーション
 pc/src/*.cs         C# ホスト（WPF ウィンドウ + WebView2）
 pc/app/             Web 側（共有 TS/CSS を使う画面）
 pc/lib/             WebView2 アセンブリ（取得スクリプトで用意、git 管理外）
@@ -229,12 +229,14 @@ DCS1|<docId>|<idx>|<total>|<crc32hex>|<base64url payload>
 
 認証と整合性:
 
-- ペアリング: ホスト側でローカルに生成した **6 桁 + チェック文字**のコードを
-  発行（既定 10 分・1 回限り）。スマホがコードを送ると、ホストが
-  デバイス ID と 32 byte の共有秘密を返す。
-- 以後の要求は `Authorization: Decimen <deviceId>` に加え、
-  `X-Decimen-Timestamp`、`X-Decimen-Body-Sha256`、
-  `X-Decimen-Signature = HMAC-SHA256(secret, method \n path \n timestamp \n bodySha256)`。
+- ペアリング: ホスト側でローカルに生成した**コード**を発行（既定 10 分・1 回限り）。
+  スマホがコードを送ると、ホストがデバイス ID と 32 byte の共有秘密を返す。
+  実装した長さは 10 文字（記号 30 種）で、この計画時の 6 桁より広げてあります。
+- 以後の要求は `x-decimen-device` でデバイスを名乗り、`x-decimen-timestamp`、
+  `x-decimen-nonce`、`x-decimen-body-sha256`、`x-decimen-signature` を付ける。
+  署名は `HMAC-SHA256(secret, "decimen-relay-v1" \n method \n path \n timestamp \n nonce \n bodySha256)`。
+  これらのヘッダー名と署名の前置きは**上流互換の通信面**なので、
+  製品名を Pub Transfer に変えた後も変更していません。
 - タイムスタンプの窓は ±120 秒。窓外は拒否。
 - 本体の SHA-256 はヘッダと突き合わせ、受信後に再計算して比較。
 
@@ -341,7 +343,7 @@ MacroStudio / App Studio の**実物の GUI と実装**を読み、次を抽出�
 
 ### 8.2 実 GUI
 
-- 実際に `pc/decimen.bat` から WPF + WebView2 アプリを起動する
+- 実際に `pc/pub-transfer.bat` から WPF + WebView2 アプリを起動する
 - 実際のコントロールを操作して主要フローを完走する
 - 主要状態を **実画面からキャプチャー**して `evidence/` に保存する
   - 標準 Windows サイズ / 狭いウィンドウ / 125% 相当 / 代表的スマホ幅

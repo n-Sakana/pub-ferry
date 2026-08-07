@@ -93,7 +93,7 @@ let setupProblem: string | null = null;
 
 before(() => {
   if (!runnable) return;
-  const root = mkdtempSync(join(tmpdir(), "decimen-parity-"));
+  const root = mkdtempSync(join(tmpdir(), "pub-transfer-parity-"));
   try {
     const inputFile = join(root, "paths.json");
     const outputFile = join(root, "verdicts.json");

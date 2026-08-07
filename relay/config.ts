@@ -66,7 +66,7 @@ export class ConfigError extends Error {
 export function defaultConfig(): RelayConfig {
   return {
     v: CONFIG_VERSION,
-    hostLabel: sanitizeLabel(hostname(), RELAY_MAX_HOST_LABEL) || "decimen-host",
+    hostLabel: sanitizeLabel(hostname(), RELAY_MAX_HOST_LABEL) || "pub-transfer-host",
     port: DEFAULT_PORT,
     bind: "tailscale",
     tls: {

@@ -46,8 +46,8 @@ async function capture(page: Page, name: string, what: string, size: string): Pr
 
 async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
-  const root = mkdtempSync(join(tmpdir(), "decimen-phone-"));
-  process.env.DECIMEN_RELAY_HOME = root;
+  const root = mkdtempSync(join(tmpdir(), "pub-transfer-phone-"));
+  process.env.PUB_TRANSFER_RELAY_HOME = root;
   const inbox = join(root, "受信箱");
   mkdirSync(inbox, { recursive: true });
 
@@ -94,9 +94,9 @@ async function main(): Promise<void> {
   store.addToOutbox("経費精算 8月", stagedContainer.container, 2);
 
   // playwright-core ships no browser of its own and wants an exact build.
-  // DECIMEN_CHROMIUM points at one that is already on the machine, so the
+  // PUB_TRANSFER_CHROMIUM points at one that is already on the machine, so the
   // screen tests do not depend on a download.
-  const executablePath = process.env.DECIMEN_CHROMIUM || undefined;
+  const executablePath = process.env.PUB_TRANSFER_CHROMIUM || undefined;
   const browser: Browser = await chromium.launch({
     executablePath,
     args: [
@@ -169,7 +169,7 @@ async function main(): Promise<void> {
     await capture(page, `${viewport.name}-07-capture`, "カメラ経路の実状態（この環境には擬似カメラが無いため、カメラなしの表示になります）", viewport.label);
 
     await page.evaluate(() => {
-      (window as unknown as { __decimen: { cameraProblem(k: string): void } }).__decimen.cameraProblem("denied");
+      (window as unknown as { __pubTransfer: { cameraProblem(k: string): void } }).__pubTransfer.cameraProblem("denied");
     });
     await page.waitForTimeout(400);
     await capture(page, `${viewport.name}-08-camera-denied`, "カメラ拒否（復旧手順つき）", viewport.label);

@@ -10,7 +10,7 @@ using System.Windows.Media.Animation;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 
-namespace Decimen
+namespace PubTransfer
 {
     // The window, and the bridge between the page and the host.
     //
@@ -71,7 +71,7 @@ namespace Decimen
             DrawingGroup drawing = new DrawingGroup();
             RectangleGeometry plate = new RectangleGeometry(new Rect(1, 1, Size - 2, Size - 2), 14, 14);
             FormattedText text = new FormattedText(
-                "DT",
+                "PT",
                 CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
                 new Typeface(
@@ -109,7 +109,7 @@ namespace Decimen
             mark.HorizontalAlignment = HorizontalAlignment.Center;
             mark.Background = new SolidColorBrush(MarkPlate);
             TextBlock initials = new TextBlock();
-            initials.Text = "DT";
+            initials.Text = "PT";
             initials.FontSize = 16;
             initials.FontWeight = FontWeights.Bold;
             initials.HorizontalAlignment = HorizontalAlignment.Center;
@@ -164,12 +164,12 @@ namespace Decimen
                 string userData = Path.Combine(HostServices.DataDirectory(), "WebView2");
                 Directory.CreateDirectory(userData);
 
-                // A debugging port is opened only when decimen.ps1 was asked
+                // A debugging port is opened only when pub-transfer.ps1 was asked
                 // for one. It is how the automated screen tests drive the REAL
                 // window rather than a copy of the page in a browser, and it is
                 // absent from an ordinary run.
                 CoreWebView2EnvironmentOptions options = new CoreWebView2EnvironmentOptions();
-                string debugPort = Environment.GetEnvironmentVariable("DECIMEN_DEBUG_PORT");
+                string debugPort = Environment.GetEnvironmentVariable("PUB_TRANSFER_DEBUG_PORT");
                 testMode = !string.IsNullOrEmpty(debugPort);
                 string extra = "--disable-features=msWebOOUI,msPdfOOUI";
                 if (!string.IsNullOrEmpty(debugPort))
@@ -184,7 +184,7 @@ namespace Decimen
                 // A fake camera, again only when asked for: this desktop has no
                 // camera, so the only way to exercise the receiving path on it
                 // is to hand the runtime a recorded one.
-                string fakeVideo = Environment.GetEnvironmentVariable("DECIMEN_FAKE_VIDEO");
+                string fakeVideo = Environment.GetEnvironmentVariable("PUB_TRANSFER_FAKE_VIDEO");
                 if (!string.IsNullOrEmpty(fakeVideo))
                 {
                     extra += " --use-fake-ui-for-media-stream";
@@ -553,7 +553,7 @@ namespace Decimen
         }
 
         /// Whether this run was started for testing. Read ONCE, at startup,
-        /// from the environment decimen.ps1 set for this process — not on
+        /// from the environment pub-transfer.ps1 set for this process — not on
         /// demand. `$env:` persists across commands in one PowerShell session,
         /// so a second, ordinary run in the same window would otherwise
         /// inherit the flag and quietly re-open the test-only actions.
