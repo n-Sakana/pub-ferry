@@ -1,20 +1,20 @@
 // Where the relay keeps its things, on every platform it runs on.
 //
-// One override for all of it (PUB_TRANSFER_RELAY_HOME) so a test, a second instance
+// One override for all of it (PUB_FERRY_RELAY_HOME) so a test, a second instance
 // and a service account can each have their own without touching the real one.
 
 import { homedir, platform } from "node:os";
 import { join, resolve } from "node:path";
 
 export function relayHome(): string {
-  const override = process.env.PUB_TRANSFER_RELAY_HOME;
+  const override = process.env.PUB_FERRY_RELAY_HOME;
   if (override && override.trim().length > 0) return resolve(override);
   if (platform() === "win32") {
     const base = process.env.LOCALAPPDATA ?? join(homedir(), "AppData", "Local");
-    return join(base, "PubTransfer", "relay");
+    return join(base, "PubFerry", "relay");
   }
   const base = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config");
-  return join(base, "pub-transfer", "relay");
+  return join(base, "pub-ferry", "relay");
 }
 
 export const configPath = () => join(relayHome(), "config.json");

@@ -13,7 +13,7 @@ const BRAND_INNER =
   '1236 -1030 2069 -2262 2249 -217 32 -411 36 -1772 36 l-1368 0 0 -1377z"/>' +
   '<path d="M4945 5906 c-300 -68 -532 -287 -611 -577 -25 -89 -25 -289 0 -378 141 -513 724 ' +
   "-749 1179 -477 405 242 503 778 209 1148 -100 125 -258 229 -417 273 -82 22 -282 29 -360 " +
-  '11z"/></g></svg>Decimen Optical Transfer';
+  '11z"/></g></svg>Pub Ferry';
 
 /**
  * A standalone file has no siblings, so links to the other pages are dead ends.
@@ -45,7 +45,7 @@ export function rewriteStandaloneLinks(page: "send" | "receive"): Plugin {
       // A single file has no siblings to load a favicon from, and leaving the
       // link in would be the one external reference in a page whose whole point
       // is having none.
-      from: '<link rel="icon" href="../decimen_logo.svg" type="image/svg+xml" />',
+      from: '<link rel="icon" href="../pub-ferry-logo.svg" type="image/svg+xml" />',
       to: "",
       required: true,
     },

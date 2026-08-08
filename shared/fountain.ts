@@ -88,7 +88,7 @@ function frameSeed(sessionId: number, seq: number): number {
  *
  * Exported for the golden-vector tests. Sender and receiver derive this
  * independently and never compare notes, so any change here is a breaking
- * wire-format change: a `decimen-sender.html` someone saved months ago has to
+ * wire-format change: a `pub-ferry-sender.html` someone saved months ago has to
  * keep agreeing with a current receiver.
  */
 export function frameIndices(

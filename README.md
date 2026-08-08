@@ -1,17 +1,18 @@
-# Pub Transfer: fountain-coded QR file transfer
+# Pub Ferry: fountain-coded QR file transfer
 
 > **このリポジトリは fork です。**
 > 上流 [bashalarmistalt/decimen-optical-transfer](https://github.com/bashalarmistalt/decimen-optical-transfer)
 > （v0.3.0 / MIT / Copyright (c) 2026 Evan Crawley (Bash Alarmist)）に、
 > **フォルダー一式を運ぶ実用品**としての層を足したものです。上流のワイヤー
-> フォーマットとページには手を入れていません。
+> フォーマットには手を入れていません（ページは製品名の表示だけ Pub Ferry に
+> 替えています）。
 >
 > 足したもの — Windows デスクトップアプリ（BAT → PowerShell → C# + WebView2）、
 > スマートフォンの中継 PWA、Tailscale 越しの受信ホスト（Linux VPS / Windows）、
 > 二次元コードリーダーで一枚ずつ読むモード。
 >
 > **→ 使い方・設計・検証: [docs/relay/](docs/relay/README.md)**
-> **→ すぐ試す: `pc\pub-transfer.bat` をダブルクリック**
+> **→ すぐ試す: `pc\pub-ferry.bat` をダブルクリック**
 >
 > **実機で未確認のこと** — 開発した機械にカメラ・二次元コードリーダー・
 > 物理スマートフォンが無いため、次の 3 つは**実物では通していません**:
@@ -40,7 +41,7 @@ a home screen.
 
 That site is run by the upstream author and serves the three pages below, not
 this fork's additions. To use what this fork adds, run it from this repository
-(`pc\pub-transfer.bat`, or the relay host — see
+(`pc\pub-ferry.bat`, or the relay host — see
 [docs/relay/SETUP.md](docs/relay/SETUP.md)).
 
 Files up to 64 MB (or a pasted text snippet), filename and media type

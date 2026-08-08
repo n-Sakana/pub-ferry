@@ -30,7 +30,7 @@ if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
     throw "Not found: $source"
 }
 
-if ($null -eq ('PubTransfer.SafePath' -as [type])) {
+if ($null -eq ('PubFerry.SafePath' -as [type])) {
     Add-Type -TypeDefinition ([System.IO.File]::ReadAllText($source, [System.Text.Encoding]::UTF8)) -Language CSharp
 }
 
@@ -55,7 +55,7 @@ foreach ($path in $paths) {
     $reason = $null
     $ok = $false
     try {
-        $ok = [PubTransfer.SafePath]::Check($path, [ref]$reason)
+        $ok = [PubFerry.SafePath]::Check($path, [ref]$reason)
     }
     catch {
         # A validator that throws has already failed: the caller cannot tell

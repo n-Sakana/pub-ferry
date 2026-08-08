@@ -16,7 +16,7 @@ const encoder = new TextEncoder();
 let root: string;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), "pub-transfer-writer-"));
+  root = mkdtempSync(join(tmpdir(), "pub-ferry-writer-"));
 });
 
 afterEach(() => {
@@ -149,7 +149,7 @@ test("a destination that cannot be written to is reported before a transfer star
 test("probing for writability leaves nothing in the folder", () => {
   for (let i = 0; i < 5; i++) assert.equal(isWritable(root), true);
   assert.deepEqual(
-    readdirSync(root).filter((name) => name.startsWith(".pub-transfer-probe")),
+    readdirSync(root).filter((name) => name.startsWith(".pub-ferry-probe")),
     [],
     "a probe file was left in the destination",
   );

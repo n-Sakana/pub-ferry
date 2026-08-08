@@ -1,6 +1,6 @@
 # Documentation
 
-## Using Decimen
+## Using Pub Ferry
 
 - [Quick start](user/quick-start.md) — two devices, one minute.
 - [Sending](user/sending.md) — files, text snippets, transfer settings, fullscreen, sharing.

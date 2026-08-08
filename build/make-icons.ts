@@ -1,4 +1,4 @@
-// Regenerates the PWA icon set in public/ from public/decimen_logo.svg:
+// Regenerates the PWA icon set in public/ from public/pub-ferry-logo.svg:
 //
 //   npm run icons        (needs rsvg-convert on PATH — librsvg)
 //
@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const publicDir = fileURLToPath(new URL("../public", import.meta.url));
-const logo = readFileSync(join(publicDir, "decimen_logo.svg"), "utf8");
+const logo = readFileSync(join(publicDir, "pub-ferry-logo.svg"), "utf8");
 const cleaned = logo.replace(/<!--[\s\S]*?-->/g, "");
 
 const ROUNDED_RECT = '<rect width="640" height="640" rx="112" fill="#070a11"/>';
@@ -32,7 +32,7 @@ const MARK_OPEN = '<g fill="#58c8ff" transform="translate(48.5,43)">';
 function squareVariant(markScale: number): string {
   for (const needle of [ROUNDED_RECT, MARK_OPEN]) {
     if (!cleaned.includes(needle)) {
-      throw new Error(`decimen_logo.svg changed shape — expected to find: ${needle}`);
+      throw new Error(`pub-ferry-logo.svg changed shape — expected to find: ${needle}`);
     }
   }
   return cleaned
@@ -50,7 +50,7 @@ try {
   throw new Error("rsvg-convert not found — install librsvg");
 }
 
-const work = mkdtempSync(join(tmpdir(), "decimen-icons-"));
+const work = mkdtempSync(join(tmpdir(), "pub-ferry-icons-"));
 
 function render(svg: string, size: number, out: string) {
   const src = join(work, `${out}.svg`);

@@ -5,8 +5,8 @@ Three shapes, all built from the same source. Built artifacts for all three are 
 | | what it is | needs a server? | offline |
 |---|---|---|---|
 | **Hosted site** | three pages plus a service worker — live at [decimen.app](https://decimen.app/) | yes, any static host | after the first visit |
-| **`decimen-sender.html`** | one file, ~55 KB | no | always |
-| **`decimen-receiver.html`** | one file, ~1.3 MB | see the caveat | always |
+| **`pub-ferry-sender.html`** | one file, ~55 KB | no | always |
+| **`pub-ferry-receiver.html`** | one file, ~1.3 MB | see the caveat | always |
 
 ## Hosted site: install and offline
 

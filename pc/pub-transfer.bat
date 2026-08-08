@@ -1,9 +1,0 @@
-@echo off
-rem A door, not a program. Everything that decides anything is in pub-transfer.ps1.
-setlocal
-cd /d "%~dp0"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -File "%~dp0pub-transfer.ps1" %*
-set "PUB_TRANSFER_EXIT=%ERRORLEVEL%"
-rem Keep the console up so a startup error stays readable.
-if not "%PUB_TRANSFER_EXIT%"=="0" pause
-exit /b %PUB_TRANSFER_EXIT%

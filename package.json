@@ -1,5 +1,5 @@
 {
-  "name": "pub-transfer",
+  "name": "pub-ferry",
   "private": true,
   "version": "0.3.0",
   "license": "MIT",
@@ -14,6 +14,7 @@
     "build:all": "npm run build && npm run build:standalone",
     "preview": "vite preview",
     "icons": "node --import tsx build/make-icons.ts",
+    "og": "node --import tsx tools/make-og.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "relay": "node --import tsx relay/cli.ts",
     "build:relay-web": "vite build --config vite.relay.config.ts",

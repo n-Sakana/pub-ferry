@@ -86,7 +86,7 @@ body:
       label: Which build
       options:
         - Hosted site
-        - Standalone decimen-receiver.html
+        - Standalone pub-ferry-receiver.html
         - Local dev server (npm run dev)
     validations:
       required: true

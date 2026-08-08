@@ -4,13 +4,13 @@
 // project ships its own logo under `public/`, and copying it here would put
 // someone else's mark on a home screen under a different product name — a
 // misattribution, not a shortcut. So the icon is generated from the same
-// design tokens the app itself uses: the accent plate and the "PT" initials,
+// design tokens the app itself uses: the accent plate and the "PF" initials,
 // exactly what `.brand-mark` renders in the topbar.
 //
 //   node --import tsx tools/make-relay-icons.ts
 //
 // Rendering goes through the Chromium already on this machine (the same one
-// the screen drivers use, named by PUB_TRANSFER_CHROMIUM) rather than adding
+// the screen drivers use, named by PUB_FERRY_CHROMIUM) rather than adding
 // an image library to the dependency list for three PNGs.
 
 import { chromium } from "playwright-core";
@@ -55,13 +55,13 @@ function page(icon: Icon): string {
       font-weight: 700;
       letter-spacing: 0.02em;
     }
-  </style><div class="plate">PT</div>`;
+  </style><div class="plate">PF</div>`;
 }
 
 async function main(): Promise<void> {
-  const executablePath = process.env.PUB_TRANSFER_CHROMIUM;
+  const executablePath = process.env.PUB_FERRY_CHROMIUM;
   if (executablePath && !existsSync(executablePath)) {
-    throw new Error(`PUB_TRANSFER_CHROMIUM が指す実行ファイルがありません: ${executablePath}`);
+    throw new Error(`PUB_FERRY_CHROMIUM が指す実行ファイルがありません: ${executablePath}`);
   }
   const browser = await chromium.launch({ executablePath: executablePath || undefined });
   try {

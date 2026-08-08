@@ -4,7 +4,7 @@
 // inside the running WPF window over the DevTools protocol and clicks the
 // actual controls. What it exercises is what ships.
 //
-//   1. start the app:  pc\pub-transfer.ps1 -DebugPort 9333
+//   1. start the app:  pc\pub-ferry.ps1 -DebugPort 9333
 //   2. run this:       node --import tsx tools/drive-desktop.ts <evidence-dir>
 //
 // The captures are of the PAGE, not of the screen rectangle the window occupies.
@@ -16,14 +16,14 @@
 //
 // Screens that need hardware this machine does not have (a camera) are put
 // into their real state through the page's own error path, not by drawing a
-// mock-up: __pubTransfer.cameraProblem() calls the same function a refused
+// mock-up: __pubFerry.cameraProblem() calls the same function a refused
 // getUserMedia calls.
 
 import { chromium, type CDPSession, type Page } from "playwright-core";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const port = Number(process.env.PUB_TRANSFER_DEBUG_PORT ?? 9333);
+const port = Number(process.env.PUB_FERRY_DEBUG_PORT ?? 9333);
 const outDir = resolve(process.argv[2] ?? "evidence/desktop");
 
 interface Shot {
@@ -81,11 +81,11 @@ async function main(): Promise<void> {
   // way it normally would and the screens show what a real user would see.
   await page.evaluate(async () => {
     const api = window as unknown as {
-      __pubTransfer: { setForTest?: (s: Record<string, unknown>) => Promise<void> };
+      __pubFerry: { setForTest?: (s: Record<string, unknown>) => Promise<void> };
     };
-    await api.__pubTransfer.setForTest?.({
+    await api.__pubFerry.setForTest?.({
       deviceLabel: "事務所デスクトップ",
-      destination: "D:/pub-transfer/受信箱",
+      destination: "D:/pub-ferry/受信箱",
     });
   });
   await settle(page, 400);
@@ -117,9 +117,9 @@ async function main(): Promise<void> {
   // fountain-coded stream on the same canvas.
   await page.evaluate(async (folder: string) => {
     const api = window as unknown as {
-      __pubTransfer: { pickForTest(path: string): Promise<void> };
+      __pubFerry: { pickForTest(path: string): Promise<void> };
     };
-    await api.__pubTransfer.pickForTest(folder);
+    await api.__pubFerry.pickForTest(folder);
   }, sample);
   await page.waitForSelector("#pick-summary:not([hidden])");
   await settle(page);
@@ -149,27 +149,27 @@ async function main(): Promise<void> {
 
   // The real "no camera" state on this machine, through the real error path.
   await page.evaluate(() => {
-    (window as unknown as { __pubTransfer: { cameraProblem(kind: string): void } }).__pubTransfer.cameraProblem("none");
+    (window as unknown as { __pubFerry: { cameraProblem(kind: string): void } }).__pubFerry.cameraProblem("none");
   });
   await settle(page);
   await capture("05-camera-none", "カメラなし（警告色にしない／リーダーへ誘導）");
 
   await page.evaluate(() => {
-    (window as unknown as { __pubTransfer: { cameraProblem(kind: string): void } }).__pubTransfer.cameraProblem("denied");
+    (window as unknown as { __pubFerry: { cameraProblem(kind: string): void } }).__pubFerry.cameraProblem("denied");
   });
   await settle(page);
   await capture("06-camera-denied", "カメラ拒否（復旧手順つき）");
 
   // ---- one frame at a time, driven by real frames -----------------------
   await page.evaluate(() => {
-    (window as unknown as { __pubTransfer: { goto(name: string): void } }).__pubTransfer.goto("receive-choose");
+    (window as unknown as { __pubFerry: { goto(name: string): void } }).__pubFerry.goto("receive-choose");
   });
   await page.click("#start-reader");
   await page.waitForSelector("#screen-receive-reader:not([hidden])");
   await settle(page);
   await capture("07-reader-empty", "リーダー受信・まだ 1 枚も読んでいない");
 
-  const frames = JSON.parse(process.env.PUB_TRANSFER_SLOW_FRAMES ?? "[]") as string[];
+  const frames = JSON.parse(process.env.PUB_FERRY_SLOW_FRAMES ?? "[]") as string[];
   if (frames.length > 0) {
     // Every frame but a couple, so the missing-number display is real.
     for (let index = 0; index < frames.length; index++) {
@@ -197,13 +197,13 @@ async function main(): Promise<void> {
   // The CSS viewport a 900x680 window gives, minus the chrome the OS draws.
   await useViewport(884, 636, 1, "900x680 相当（狭幅）");
   await page.evaluate(() => {
-    (window as unknown as { __pubTransfer: { goto(name: string): void } }).__pubTransfer.goto("receive-choose");
+    (window as unknown as { __pubFerry: { goto(name: string): void } }).__pubFerry.goto("receive-choose");
   });
   await settle(page);
   await capture("10-narrow-receive-choose", "狭いウィンドウ（最小幅）");
 
   await page.evaluate(() => {
-    (window as unknown as { __pubTransfer: { goto(name: string): void } }).__pubTransfer.goto("send-pick");
+    (window as unknown as { __pubFerry: { goto(name: string): void } }).__pubFerry.goto("send-pick");
   });
   await settle(page);
   await capture("11-narrow-send-pick", "狭いウィンドウ・送る（2 カラムが 1 カラムに落ちる）");
@@ -219,7 +219,7 @@ async function main(): Promise<void> {
     ["settings", "設定"],
   ] as const) {
     await page.evaluate((name: string) => {
-      (window as unknown as { __pubTransfer: { goto(n: string): void } }).__pubTransfer.goto(name);
+      (window as unknown as { __pubFerry: { goto(n: string): void } }).__pubFerry.goto(name);
     }, screen);
     await settle(page, 350);
     await capture(`12-scale125-${screen}`, `${label}（表示倍率 125% 相当）`);

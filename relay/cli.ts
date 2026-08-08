@@ -95,7 +95,7 @@ async function main(argv: string[]): Promise<number> {
   const [command, sub, ...rest] = argv;
 
   if (!command || command === "help" || command === "--help") {
-    out("pub-transfer relay — 光学転送の受信ホスト");
+    out("pub-ferry relay — 光学転送の受信ホスト");
     out("");
     out("  init                            設定を作る");
     out("  dev-cert                        試験用の自己署名証明書を作る");

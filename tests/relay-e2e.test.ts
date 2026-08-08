@@ -29,8 +29,8 @@ let inbox: string;
 import { insecureFetch } from "./helpers/https-fetch";
 
 before(async () => {
-  root = mkdtempSync(join(tmpdir(), "pub-transfer-relay-test-"));
-  process.env.PUB_TRANSFER_RELAY_HOME = root;
+  root = mkdtempSync(join(tmpdir(), "pub-ferry-relay-test-"));
+  process.env.PUB_FERRY_RELAY_HOME = root;
   inbox = join(root, "inbox");
   mkdirSync(inbox, { recursive: true });
 
@@ -68,7 +68,7 @@ before(async () => {
 after(() => {
   server?.close();
   if (root && existsSync(root)) rmSync(root, { recursive: true, force: true });
-  delete process.env.PUB_TRANSFER_RELAY_HOME;
+  delete process.env.PUB_FERRY_RELAY_HOME;
 });
 
 async function pairedClient(label = "テスト端末"): Promise<RelayClient> {

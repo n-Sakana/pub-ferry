@@ -1,7 +1,7 @@
 using System;
 using Microsoft.Web.WebView2.Core;
 
-namespace PubTransfer
+namespace PubFerry
 {
     // The edge between the host and the page.
     //
@@ -13,7 +13,7 @@ namespace PubTransfer
     public static class WebViewSecurity
     {
         // The page.
-        public const string AppHost = "pub-transfer.app.local";
+        public const string AppHost = "pub-ferry.app.local";
         public const string Scheme = "https";
 
         // Host services live under a path on the PAGE'S OWN ORIGIN rather than
@@ -31,7 +31,7 @@ namespace PubTransfer
         public static string ResourceFilter { get { return AppOrigin + "/*"; } }
 
         // Scheme, host and port must all match. A prefix test would accept
-        // https://pub-transfer.app.local.example.com/ and https://pub-transfer.app.local:8443/,
+        // https://pub-ferry.app.local.example.com/ and https://pub-ferry.app.local:8443/,
         // which are different origins anybody could stand up.
         public static bool IsTrustedSource(string source)
         {

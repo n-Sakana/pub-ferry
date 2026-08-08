@@ -10,12 +10,12 @@ unchanged.
 
 ## この作品そのもの / This work
 
-**Pub Transfer** は **Decimen Optical Transfer** を基礎に、独自の機能
+**Pub Ferry** は **Decimen Optical Transfer** を基礎に、独自の機能
 （Windows デスクトップアプリ、スマートフォンの中継 PWA、Tailscale 越しの受信
 ホスト、二次元コードリーダー経路）を追加した fork です。製品名は変更して
 いますが、上流の著作権表示と MIT License はそのまま維持しています。
 
-**Pub Transfer** is a fork built on **Decimen Optical Transfer**, adding its
+**Pub Ferry** is a fork built on **Decimen Optical Transfer**, adding its
 own functionality (a Windows desktop app, a phone relay PWA, a receiving host
 reachable over Tailscale, and a 2D-reader input path). The product name has
 been changed; the upstream copyright notice and the MIT License are retained
@@ -95,7 +95,7 @@ Windows デスクトップアプリの画面を描く部品。
 | [@types/node](https://github.com/DefinitelyTyped/DefinitelyTyped), [@types/qrcode](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 
 `playwright-core` はブラウザーを同梱しません。画面試験は**この機械にすでに
-ある** Chromium を使います（`PUB_TRANSFER_CHROMIUM` で指定）。
+ある** Chromium を使います（`PUB_FERRY_CHROMIUM` で指定）。
 
 ---
 

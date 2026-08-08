@@ -153,7 +153,7 @@ export function writeBundle(
   // on one volume — the only kind that is atomic.
   // Unpredictable: a predictable name can be pre-created by anybody who can
   // write into the destination, which turns every transfer into an EEXIST.
-  const staging = join(root, `.pub-transfer-incoming-${randomBytes(9).toString("hex")}`);
+  const staging = join(root, `.pub-ferry-incoming-${randomBytes(9).toString("hex")}`);
   let written = 0;
   let totalSize = 0;
   const created = new Set<string>();
@@ -242,7 +242,7 @@ export function writeBundle(
  * The obvious implementation — create a probe file, delete it — was tried and
  * left litter. On Windows a delete only takes effect when the last handle
  * closes, and something on this machine (a scanner, the indexer) holds new
- * files long enough that `.pub-transfer-probe-*` entries were still listed in the
+ * files long enough that `.pub-ferry-probe-*` entries were still listed in the
  * destination afterwards. Probing with a directory instead reduced it but did
  * not eliminate it. A hint that leaves debris in the user's receive folder is
  * a worse bargain than a hint that is occasionally optimistic.

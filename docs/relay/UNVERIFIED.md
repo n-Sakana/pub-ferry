@@ -28,7 +28,7 @@ found` を返します。この環境に映像デバイスの層そのものが�
 
 ### 受入手順（カメラのある PC で）
 
-1. `pc\pub-transfer.bat` を起動 →「受け取る」→「カメラで読み取る」
+1. `pc\pub-ferry.bat` を起動 →「受け取る」→「カメラで読み取る」
 2. 別の端末で送信側を表示（スマホでも、もう 1 台の PC でも）
 3. 進捗が上がり、「保存しました」が出て、保存先の中身が元と一致すること
 
@@ -37,7 +37,7 @@ found` を返します。この環境に映像デバイスの層そのものが�
 ```
 npm run build:relay-web
 node --import tsx tools/make-qr-video.ts evidence/tmp/qr-stream.y4m 20
-$env:PUB_TRANSFER_CHROMIUM = "<chrome.exe のパス>"
+$env:PUB_FERRY_CHROMIUM = "<chrome.exe のパス>"
 npm test          # optical-e2e が skip から実行に変わります
 ```
 
@@ -67,7 +67,7 @@ npm test          # optical-e2e が skip から実行に変わります
 **キーボードウェッジの場合**
 
 1. リーダーを「QR 対応・接尾に Enter」の設定にする
-2. `pub-transfer.bat` →「受け取る」→「読み取り機で 1 枚ずつ読む」
+2. `pub-ferry.bat` →「受け取る」→「読み取り機で 1 枚ずつ読む」
 3. **入力欄にフォーカスがある状態で**、日本語入力を切って読み取る
 4. マス目が塗られ、足りない番号が数字で出ること
 5. 全部揃って「照合は済んでいます」まで進むこと

@@ -11,9 +11,12 @@ npm run build             # typecheck (app + node configs), hosted site → dist
 npm run build:standalone  # both self-contained pages → dist-standalone/
 npm run build:all         # everything
 npm run icons             # regenerate public/ icons from the logo (needs librsvg)
+npm run og                # regenerate public/og.png, the social card (needs Chromium)
 ```
 
 `npm run icons` strips the logo SVG's comments before rasterizing (a `--` inside a comment is invalid XML that browsers tolerate but librsvg rejects) and does exact-match surgery on the markup, throwing if the logo changes shape.
+
+`npm run og` draws the 1200×630 social card from the design tokens and the logo mark, through the Chromium already on the machine (`PUB_FERRY_CHROMIUM`). The card carries the product name, so it is generated rather than hand-made — a static binary is what let it keep reading `DECIMEN OPTICAL TRANSFER` after a rename. Its mocked QR frame is seeded, so re-running reproduces the same image.
 
 `VITE_SITE_URL` overrides the published URL baked into social cards and the share dialogs (default `https://decimen.app/`, trailing slash required).
 
@@ -25,7 +28,7 @@ npm run icons             # regenerate public/ icons from the logo (needs librsv
 
 - **`ci.yml`** — tests and builds on every push to `main` / `release/*` and every PR. Asserts the served `receive` chunk stays under 20 KB (catches the inlined worker/wasm leaking into the site build) and that manifest/SW references point at files that exist.
 - **`pages.yml`** — deploys to GitHub Pages on every push to `main`.
-- **`release.yml`** — on a `v*` tag: builds everything, attaches `decimen-<tag>-site.zip`, both standalone files, and `SHA256SUMS.txt`.
+- **`release.yml`** — on a `v*` tag: builds everything, attaches `pub-ferry-<tag>-site.zip`, both standalone files, and `SHA256SUMS.txt`.
 
 The site builds with `base: "./"`, so it works under a project subpath with no configuration.
 

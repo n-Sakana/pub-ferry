@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Web.Script.Serialization;
 
-namespace PubTransfer
+namespace PubFerry
 {
     // A thin, total reader over JavaScriptSerializer's object graph.
     //

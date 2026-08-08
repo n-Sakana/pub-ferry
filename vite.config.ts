@@ -37,8 +37,8 @@ const SITE_URL = process.env.VITE_SITE_URL ?? "https://decimen.app/";
 // Modes:
 //   (default)           the site — three pages, PWA, offline after first visit
 //   demo                sender locked to the bundled payloads
-//   standalone-send     one self-contained decimen-sender.html
-//   standalone-receive  one self-contained decimen-receiver.html
+//   standalone-send     one self-contained pub-ferry-sender.html
+//   standalone-receive  one self-contained pub-ferry-receiver.html
 //
 // The plugins live in build/, one file each.
 
@@ -100,7 +100,7 @@ export default defineConfig(({ mode }) => {
         standaloneCsp(page),
         viteSingleFile(),
         licenseBanner(pkg.version),
-        emitAs(outDir, `${page}/index.html`, `decimen-${page === "send" ? "sender" : "receiver"}.html`),
+        emitAs(outDir, `${page}/index.html`, `pub-ferry-${page === "send" ? "sender" : "receiver"}.html`),
       ],
       // Workers are bundled in their own Rollup pass and do not inherit the
       // plugin list, so both plugins have to be registered again here.
@@ -124,8 +124,8 @@ export default defineConfig(({ mode }) => {
         // We inject our own registration — see rootPwaHead().
         injectRegister: false,
         manifest: {
-          name: "Decimen Optical Transfer",
-          short_name: "Decimen",
+          name: "Pub Ferry",
+          short_name: "Pub Ferry",
           description:
             "Send a file or text between two devices with a screen and a camera. No network.",
           theme_color: "#070a11",

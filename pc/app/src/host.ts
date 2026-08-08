@@ -80,7 +80,7 @@ export function call<T>(action: string, params: Record<string, unknown> = {}): P
   if (!channel) {
     return Promise.reject(
       new HostError(
-        "この画面はデスクトップアプリの中で動かす必要があります。pub-transfer.bat から起動してください。",
+        "この画面はデスクトップアプリの中で動かす必要があります。pub-ferry.bat から起動してください。",
         "not-hosted",
       ),
     );

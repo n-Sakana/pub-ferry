@@ -33,7 +33,7 @@ test("SHA-256 verification rejects changed file bytes", async () => {
 });
 
 test("compressible files use gzip and recover exactly", async () => {
-  const source = new TextEncoder().encode("decimen optical transfer\n".repeat(4_000));
+  const source = new TextEncoder().encode("pub ferry optical transfer\n".repeat(4_000));
   const packed = await packFile("notes.txt", "text/plain", source);
   const recovered = await unpackFile(packed.container);
 

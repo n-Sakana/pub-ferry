@@ -1,6 +1,6 @@
 {
-  "name": "Pub Transfer 中継",
-  "short_name": "Pub Transfer 中継",
+  "name": "Pub Ferry 中継",
+  "short_name": "Pub Ferry 中継",
   "description": "Tailscale の内側と、外側の画面との間で一度だけファイルを渡します。",
   "start_url": "./",
   "scope": "./",

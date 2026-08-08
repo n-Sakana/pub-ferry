@@ -469,7 +469,7 @@ details.settings input[type="range"] {
   color: var(--text);
   font-size: 13px;
   font-weight: 800;
-  /* Tighter than the old DECIMEN-only mark: at 0.18em the full product name
+  /* Tighter than the old short-word mark: at 0.18em the full product name
      out-shouted the page headings. */
   letter-spacing: 0.12em;
   text-transform: uppercase;

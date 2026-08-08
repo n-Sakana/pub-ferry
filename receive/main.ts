@@ -491,7 +491,7 @@ async function finish(container: Uint8Array, hashOk: boolean, seconds: number) {
   }
 }
 
-/** Deletes the received-media cache — the one thing Decimen persists (see
+/** Deletes the received-media cache — the one thing Pub Ferry persists (see
  *  servableMediaUrl). Handing the phone over shouldn't mean handing over the
  *  last transfer. A player still streaming from the cache falls back to its
  *  blob URL via the error listener wired in finish(). */
@@ -499,7 +499,7 @@ function clearCacheButton(): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "secondary-button";
-  button.textContent = "Clear Decimen cache";
+  button.textContent = "Clear Pub Ferry cache";
   button.addEventListener("click", () => {
     button.disabled = true;
     caches.delete("received-media").then(

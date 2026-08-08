@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 
-namespace PubTransfer
+namespace PubFerry
 {
     // Everything the page cannot do for itself: the OS file dialogs, the
     // settings file, the log, and reading a folder off the disk.
@@ -42,7 +42,7 @@ namespace PubTransfer
         public static string DataDirectory()
         {
             string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(local, "PubTransfer", "pc");
+            return Path.Combine(local, "PubFerry", "pc");
         }
 
         public static string LogDirectory()
@@ -58,7 +58,7 @@ namespace PubTransfer
         public static string DefaultDestination()
         {
             string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            return Path.Combine(documents, "Pub Transfer 受信");
+            return Path.Combine(documents, "Pub Ferry 受信");
         }
 
         public Dictionary<string, object> LoadSettings()
@@ -503,7 +503,7 @@ namespace PubTransfer
                 Directory.CreateDirectory(LogDirectory());
                 string path = Path.Combine(
                     LogDirectory(),
-                    "pub-transfer-" + DateTime.Now.ToString("yyyyMMdd") + ".log");
+                    "pub-ferry-" + DateTime.Now.ToString("yyyyMMdd") + ".log");
                 // No file contents, no paths inside a transfer, no tokens: a
                 // log is a record of what happened, not a copy of what moved.
                 string line = "[" + DateTime.Now.ToString("HH:mm:ss") + "] [" + level + "] " + message;

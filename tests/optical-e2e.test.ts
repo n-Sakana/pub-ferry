@@ -27,8 +27,8 @@ const WEB_ROOT = resolve("relay/web/dist");
 
 /** A Chromium already on this machine. playwright-core ships none. */
 function findChromium(): string | null {
-  if (process.env.PUB_TRANSFER_CHROMIUM && existsSync(process.env.PUB_TRANSFER_CHROMIUM)) {
-    return process.env.PUB_TRANSFER_CHROMIUM;
+  if (process.env.PUB_FERRY_CHROMIUM && existsSync(process.env.PUB_FERRY_CHROMIUM)) {
+    return process.env.PUB_FERRY_CHROMIUM;
   }
   const base = join(homedir(), "AppData", "Local", "ms-playwright");
   if (!existsSync(base)) return null;
@@ -103,7 +103,7 @@ let ready = false;
  *  gone, and this one covers the part of the product that needs a camera. */
 function reasonNotRun(): string {
   if (chromiumPath === null) {
-    return "Chromium が見つかりません（PUB_TRANSFER_CHROMIUM に実行ファイルを指定してください）";
+    return "Chromium が見つかりません（PUB_FERRY_CHROMIUM に実行ファイルを指定してください）";
   }
   if (!existsSync(join(WEB_ROOT, "index.html"))) {
     return `${WEB_ROOT} がありません（npm run build:relay-web を先に実行してください）`;
@@ -123,7 +123,7 @@ let video: string;
 
 before(async () => {
   if (chromiumPath === null || !existsSync(join(WEB_ROOT, "index.html"))) return;
-  const probeRoot = mkdtempSync(join(tmpdir(), "pub-transfer-camera-probe-"));
+  const probeRoot = mkdtempSync(join(tmpdir(), "pub-ferry-camera-probe-"));
   try {
     fakeCameraProblem = await probeFakeCamera(chromiumPath, join(probeRoot, "cert"));
   } finally {
@@ -131,8 +131,8 @@ before(async () => {
   }
   if (fakeCameraProblem !== null) return;
   ready = true;
-  root = mkdtempSync(join(tmpdir(), "pub-transfer-optical-"));
-  process.env.PUB_TRANSFER_RELAY_HOME = root;
+  root = mkdtempSync(join(tmpdir(), "pub-ferry-optical-"));
+  process.env.PUB_FERRY_RELAY_HOME = root;
   inbox = join(root, "受信箱");
   mkdirSync(inbox, { recursive: true });
 
@@ -167,7 +167,7 @@ before(async () => {
 after(() => {
   server?.close();
   if (root && existsSync(root)) rmSync(root, { recursive: true, force: true });
-  delete process.env.PUB_TRANSFER_RELAY_HOME;
+  delete process.env.PUB_FERRY_RELAY_HOME;
 });
 
 test("a folder crosses the optical channel and lands on disk byte for byte", async (t) => {

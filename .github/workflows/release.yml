@@ -34,10 +34,10 @@ jobs:
           mkdir -p artifacts
           # The hostable site: unzip onto any static host, or open over a local
           # server. Registers a service worker, so it runs offline after one visit.
-          (cd dist && zip -qr "../artifacts/decimen-$TAG-site.zip" .)
+          (cd dist && zip -qr "../artifacts/pub-ferry-$TAG-site.zip" .)
           # The two self-contained pages: no server, no network, no install.
-          cp dist-standalone/decimen-sender.html "artifacts/decimen-$TAG-sender.html"
-          cp dist-standalone/decimen-receiver.html "artifacts/decimen-$TAG-receiver.html"
+          cp dist-standalone/pub-ferry-sender.html "artifacts/pub-ferry-$TAG-sender.html"
+          cp dist-standalone/pub-ferry-receiver.html "artifacts/pub-ferry-$TAG-receiver.html"
           (cd artifacts && sha256sum ./* > SHA256SUMS.txt)
           ls -la artifacts
 

@@ -13,7 +13,8 @@ import type { Plugin } from "vite";
  */
 export function licenseBanner(version: string): Plugin {
   const text =
-    `Decimen Optical Transfer v${version} — https://decimen.app — ` +
+    `Pub Ferry v${version} — a fork of Decimen Optical Transfer — ` +
+    `https://decimen.app — ` +
     `(c) 2026 Evan Crawley (Bash Alarmist) — SPDX-License-Identifier: MIT`;
   const comment = `/*! ${text} */\n`;
   const htmlComment = `<!-- ${text} -->`;

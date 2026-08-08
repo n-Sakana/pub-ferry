@@ -1,6 +1,6 @@
 # Receiving
 
-Open `/receive/`, tap **Start camera**, point it at the sender's code. There is no pairing: the receiver locks onto any Decimen stream mid-flight, works out on its own whether a file or text is arriving, and restarts cleanly if the sender does.
+Open `/receive/`, tap **Start camera**, point it at the sender's code. There is no pairing: the receiver locks onto any Pub Ferry stream mid-flight, works out on its own whether a file or text is arriving, and restarts cleanly if the sender does.
 
 Fill the camera view with the code and prop the phone against something — autofocus hunting from hand tremor is the #1 throughput killer. On cameras that support it (Android, typically) continuous autofocus is enabled automatically.
 
@@ -11,7 +11,7 @@ Progress counts **frames collected**, not blocks solved — fountain decoding ba
 - The file is verified against its SHA-256 before anything is offered.
 - Images, video, and audio preview inline — video plays in the page (never autoplays), other files just get the **Save** link.
 - **Receive another file** reloads into a fresh receiver.
-- **Clear Decimen cache** scrubs the received bytes from browser storage — see [Privacy](privacy.md).
+- **Clear Pub Ferry cache** scrubs the received bytes from browser storage — see [Privacy](privacy.md).
 - Text snippets appear with a **Copy** button and exist only until the tab closes.
 
 **Live diagnostics** (capture/decode fps, goodput, frames, K) is collapsible during the transfer and becomes the **Transfer summary** when it ends.
