@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
+  <title>Ferry</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <svg class="symbol-store" aria-hidden="true">
+    <symbol id="icon-optical" viewBox="0 0 24 24">
+      <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM15 14h2v2h-2zM19 14h1v3h-3v3h-3v-2h2v-2h3z" />
+    </symbol>
+    <symbol id="icon-markdown" viewBox="0 0 24 24">
+      <path d="M4 6h16M4 12h12M4 18h16" />
+    </symbol>
+    <symbol id="icon-vba" viewBox="0 0 24 24">
+      <path d="m9 6-5 6 5 6M15 6l5 6-5 6M13 4l-2 16" />
+    </symbol>
+    <symbol id="icon-folder" viewBox="0 0 24 24">
+      <path d="M3.5 7.5h7l2-2h8v13h-17z" />
+    </symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24">
+      <path d="m9 5 7 7-7 7" />
+    </symbol>
+    <symbol id="icon-up" viewBox="0 0 24 24">
+      <path d="m5 14 7-7 7 7" />
+    </symbol>
+    <symbol id="icon-camera" viewBox="0 0 24 24">
+      <path d="M4 8h4l2-3h4l2 3h4v11H4z" /><circle cx="12" cy="13" r="3.5" />
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18" />
+    </symbol>
+  </svg>
+
+  <a class="skip-link" href="#workspace">本文へ移動</a>
+
+  <div class="app-shell" id="appShell" data-role="loading">
+    <aside class="sidebar" aria-label="Ferry ナビゲーション">
+      <div class="brand">Ferry</div>
+      <nav class="primary-nav" aria-label="機能">
+        <button class="nav-item" type="button" data-page="optical">
+          <span class="nav-icon blue"><svg aria-hidden="true"><use href="#icon-optical"></use></svg></span>
+          <span>光学転送</span>
+        </button>
+        <button class="nav-item" type="button" data-page="markdown">
+          <span class="nav-icon orange"><svg aria-hidden="true"><use href="#icon-markdown"></use></svg></span>
+          <span>Markdown 化</span>
+        </button>
+        <button class="nav-item is-active" type="button" data-page="vba" aria-current="page">
+          <span class="nav-icon green"><svg aria-hidden="true"><use href="#icon-vba"></use></svg></span>
+          <span>VBA 抽出</span>
+        </button>
+      </nav>
+
+      <section class="device-panel" aria-labelledby="deviceHeading">
+        <h2 class="side-caption" id="deviceHeading">Device</h2>
+        <div class="device-row">
+          <span class="device-dot" aria-hidden="true"></span>
+          <span id="deviceName">読み込み中</span>
+          <span class="device-tag" id="platformTag">PC</span>
+        </div>
+      </section>
+
+      <dl class="capability-list">
+        <div><dt>Word</dt><dd id="statusWord">確認中</dd></div>
+        <div><dt>Windows OCR</dt><dd id="statusOcr">確認中</dd></div>
+        <div><dt>カメラ</dt><dd id="statusCamera">未確認</dd></div>
+      </dl>
+    </aside>
+
+    <header class="remote-header">
+      <span class="remote-brand">Ferry</span>
+      <button class="remote-device" type="button" aria-label="操作する PC" aria-haspopup="listbox" aria-expanded="false">
+        <span class="remote-dot" aria-hidden="true"></span>
+        <span id="remoteDeviceName">確認中</span>
+        <span aria-hidden="true">▾</span>
+      </button>
+    </header>
+
+    <main class="workspace" id="workspace" tabindex="-1">
+      <section class="page" data-page-panel="optical" hidden aria-labelledby="opticalTitle">
+        <div class="page-heading">
+          <h1 id="opticalTitle">光学転送</h1>
+          <div class="segmented" id="opticalDirection" aria-label="転送方向">
+            <button class="is-active" type="button" data-view="send" aria-pressed="true">送る</button>
+            <button type="button" data-view="receive" aria-pressed="false">受け取る</button>
+          </div>
+        </div>
+
+        <div class="transfer-layout" data-optical-view="send">
+          <div class="contents-pane">
+            <section class="folder-card" aria-label="送るフォルダ">
+              <div class="path-row">
+                <span class="folder-path mono" data-folder-path>読み込み中</span>
+                <button class="small primary choose-folder" type="button">選ぶ</button>
+                <span class="remote-folder-note">PC で選んだフォルダ</span>
+              </div>
+              <div class="summary-bar">
+                <span><strong data-summary-count>0</strong> ファイル</span>
+                <span class="summary-types" data-summary-types></span>
+                <span class="summary-size" data-summary-size>0 B</span>
+              </div>
+            </section>
+
+            <h2 class="section-caption">Contents</h2>
+            <section class="file-table" aria-label="送るファイル">
+              <div class="file-head"><span>名前</span><span>サイズ</span><span>更新日時</span></div>
+              <div class="file-list" id="opticalFiles" data-mode="optical" aria-live="polite"></div>
+            </section>
+          </div>
+
+          <div class="transfer-pane">
+            <h2 class="section-caption">Transfer</h2>
+            <section class="settings-card">
+              <div class="setting-row">
+                <span>先に Markdown 化する</span>
+                <button class="switch is-on" type="button" role="switch" aria-checked="true" aria-label="先に Markdown 化する"></button>
+              </div>
+              <div class="setting-row">
+                <span>1 枚に載せる量</span>
+                <div class="segmented compact" aria-label="1 枚に載せる量">
+                  <button type="button" aria-pressed="false">少</button>
+                  <button class="is-active" type="button" aria-pressed="true">中</button>
+                  <button type="button" aria-pressed="false">多</button>
+                </div>
+              </div>
+              <div class="setting-row">
+                <span>1 秒あたりの枚数</span>
+                <div class="segmented compact" aria-label="1 秒あたりの枚数">
+                  <button type="button" aria-pressed="false">8</button>
+                  <button class="is-active" type="button" aria-pressed="true">12</button>
+                  <button type="button" aria-pressed="false">16</button>
+                </div>
+              </div>
+              <div class="setting-row">
+                <span>QR の大きさ</span>
+                <span class="secondary qr-size">5.8 cm</span>
+              </div>
+            </section>
+            <div class="actions"><button class="primary" type="button" disabled>この端末に QR を出す</button></div>
+          </div>
+        </div>
+
+        <div data-optical-view="receive" hidden>
+          <section class="camera-frame" aria-label="カメラ映像">
+            <div class="camera-reticle"><svg aria-hidden="true"><use href="#icon-camera"></use></svg></div>
+            <div class="camera-label">カメラは未接続</div>
+          </section>
+          <section class="meter-card" aria-label="受信状況">
+            <div class="meter-line"><span>受信待ち</span><span class="mono">0 KB/s</span></div>
+            <div class="meter-track"><span></span></div>
+            <div class="meter-detail"><span>フレームを待っています</span><span>0 枚</span></div>
+          </section>
+          <h2 class="section-caption">Output</h2>
+          <section class="settings-card">
+            <div class="setting-row"><span>受け取るもの</span><span class="secondary">未定</span></div>
+            <div class="setting-row"><span>保存先</span><span class="secondary mono" data-folder-path>読み込み中</span></div>
+            <div class="setting-row">
+              <span>終わったらフォルダを開く</span>
+              <button class="switch is-on" type="button" role="switch" aria-checked="true" aria-label="終わったらフォルダを開く"></button>
+            </div>
+          </section>
+          <div class="actions"><button class="danger" type="button" disabled>受け取りを止める</button></div>
+        </div>
+      </section>
+
+      <section class="page" data-page-panel="markdown" hidden aria-labelledby="markdownTitle">
+        <div class="page-heading">
+          <h1 id="markdownTitle">Markdown 化</h1>
+          <button class="small primary choose-folder" type="button">フォルダを選ぶ</button>
+        </div>
+
+        <section class="folder-card" aria-label="Markdown にするフォルダ">
+          <div class="path-row"><span class="folder-path mono" data-folder-path>読み込み中</span></div>
+          <div class="summary-bar">
+            <span><strong data-summary-count>0</strong> ファイル</span>
+            <span class="summary-types" data-summary-types></span>
+            <span class="summary-size" data-summary-size>0 B</span>
+          </div>
+        </section>
+
+        <h2 class="section-caption">Contents</h2>
+        <section class="file-table" aria-label="Markdown にするファイル">
+          <div class="file-head"><span>名前</span><span>サイズ</span><span>更新日時</span></div>
+          <div class="file-list tall" id="markdownFiles" data-mode="markdown" aria-live="polite"></div>
+        </section>
+
+        <h2 class="section-caption">Output</h2>
+        <section class="settings-card">
+          <div class="setting-row">
+            <span>1 枚の Markdown にまとめる</span>
+            <button class="switch is-on" type="button" role="switch" aria-checked="true" aria-label="1 枚の Markdown にまとめる"></button>
+          </div>
+          <div class="setting-row"><span>出力先</span><span class="secondary mono" id="markdownOutput">output.md</span></div>
+        </section>
+        <div class="actions">
+          <button type="button" disabled>そのまま送る</button>
+          <button class="primary" type="button" disabled>まとめる</button>
+        </div>
+      </section>
+
+      <section class="page" data-page-panel="vba" aria-labelledby="vbaTitle">
+        <div class="page-heading">
+          <h1 id="vbaTitle">VBA 抽出</h1>
+          <button class="small primary choose-folder" type="button">フォルダを選ぶ</button>
+        </div>
+
+        <section class="folder-card" aria-label="VBA を取り出すフォルダ">
+          <div class="path-row"><span class="folder-path mono" data-folder-path>読み込み中</span></div>
+          <div class="summary-bar">
+            <span><strong data-summary-count>0</strong> ブック</span>
+            <span class="summary-types" data-summary-types></span>
+            <span class="summary-size" data-summary-size>0 B</span>
+          </div>
+        </section>
+
+        <h2 class="section-caption">Contents</h2>
+        <section class="file-table" aria-label="VBA を取り出すブック">
+          <div class="file-head"><span>名前</span><span>サイズ</span><span>更新日時</span></div>
+          <div class="file-list vba-list" id="vbaFiles" data-mode="vba" aria-live="polite"></div>
+        </section>
+
+        <h2 class="section-caption">Output</h2>
+        <section class="settings-card">
+          <div class="setting-row"><span>出力先</span><span class="secondary mono">.\_vba\</span></div>
+          <div class="setting-row">
+            <span>.frx も出す</span>
+            <button class="switch is-on" type="button" role="switch" aria-checked="true" aria-label=".frx も出す"></button>
+          </div>
+        </section>
+        <p class="hint">選ぶのはブック単位。行を押すと中のモジュールが開く。取り出すのは VBA プロジェクトだけで、シートの中身は触らない。</p>
+        <div class="actions"><button class="primary" type="button" disabled>書き出す</button></div>
+      </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="機能">
+      <button type="button" data-page="optical">
+        <svg aria-hidden="true"><use href="#icon-optical"></use></svg><span>転送</span>
+      </button>
+      <button type="button" data-page="markdown">
+        <svg aria-hidden="true"><use href="#icon-markdown"></use></svg><span>Markdown</span>
+      </button>
+      <button class="is-active" type="button" data-page="vba" aria-current="page">
+        <svg aria-hidden="true"><use href="#icon-vba"></use></svg><span>VBA</span>
+      </button>
+    </nav>
+  </div>
+
+  <dialog class="folder-dialog" id="folderDialog" aria-labelledby="folderDialogTitle">
+    <div class="dialog-heading">
+      <div>
+        <span class="dialog-kicker">この PC</span>
+        <h2 id="folderDialogTitle">フォルダを選ぶ</h2>
+      </div>
+      <button class="icon-button" type="button" id="closeFolderDialog" aria-label="閉じる">
+        <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="browser-toolbar">
+      <button class="icon-button" type="button" id="folderUp" aria-label="一つ上のフォルダへ">
+        <svg aria-hidden="true"><use href="#icon-up"></use></svg>
+      </button>
+      <div class="browser-path mono" id="browserPath">読み込み中</div>
+    </div>
+    <div class="directory-list" id="directoryList" aria-live="polite"></div>
+    <p class="dialog-error" id="folderDialogError" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" id="cancelFolderDialog">キャンセル</button>
+      <button class="primary" type="button" id="selectCurrentFolder">このフォルダを選ぶ</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <noscript>Ferry を使うには JavaScript を有効にしてください。</noscript>
+</body>
+</html>
