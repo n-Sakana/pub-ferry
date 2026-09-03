@@ -783,7 +783,7 @@ namespace Ferry
             return text.ToString();
         }
 
-        private static string ValidateEntryName(string name)
+        internal static string ValidateEntryName(string name)
         {
             if (string.IsNullOrWhiteSpace(name)
                 || name.Length > 200

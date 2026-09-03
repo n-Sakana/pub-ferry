@@ -30,6 +30,16 @@
     opticalSequence: 0,
     opticalTimer: null,
     qrSizeIndex: 2,
+    cameraStream: null,
+    cameraWorkers: [],
+    cameraGeneration: 0,
+    cameraStarting: false,
+    cameraRunning: false,
+    cameraComplete: false,
+    cameraPostsInFlight: 0,
+    cameraFrameId: 0,
+    cameraQuietTimer: null,
+    cameraReceiverId: null,
     markdownBusy: false,
     vbaBusy: false,
     vbaInfo: new Map(),
@@ -42,6 +52,7 @@
 
   var toast = document.getElementById("toast");
   var toastTimer = null;
+  var cameraCanvas = document.createElement("canvas");
 
   wireNavigation();
   wireControls();
@@ -150,9 +161,7 @@
       openOutput("vba", this);
     });
     document.getElementById("showQr").addEventListener("click", startOptical);
-    document.getElementById("readLocalCamera").addEventListener("click", function () {
-      setOpticalView("receive");
-    });
+    document.getElementById("readLocalCamera").addEventListener("click", toggleCamera);
     document.getElementById("showRemoteQr").addEventListener("click", function () {
       sendRemoteCommand("showQr", this);
     });
@@ -181,6 +190,7 @@
       }
     });
     window.addEventListener("pagehide", disconnectRemote);
+    window.addEventListener("pagehide", shutdownCamera);
     applyQrSize();
   }
 
@@ -191,6 +201,11 @@
 
     if (!isPage(page)) {
       return;
+    }
+
+    if (page !== "optical" && (state.cameraRunning || state.cameraStarting)) {
+      stopCamera(true, false);
+      resetReceivePanel();
     }
 
     state.activePage = page;
@@ -222,6 +237,11 @@
   function setOpticalView(view) {
     if (view !== "send" && view !== "receive") {
       return;
+    }
+
+    if (view === "send" && (state.cameraRunning || state.cameraStarting)) {
+      stopCamera(true, false);
+      resetReceivePanel();
     }
 
     state.opticalView = view;
@@ -260,7 +280,8 @@
     var capabilities = status && status.capabilities ? status.capabilities : {};
     setCapability("statusWord", capabilities.word ? "見つかった" : "なし", Boolean(capabilities.word));
     setCapability("statusOcr", capabilities.windowsOcr ? "対象" : "なし", Boolean(capabilities.windowsOcr));
-    setCapability("statusCamera", "未確認", false);
+    var cameraApi = Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    setCapability("statusCamera", cameraApi ? "ブラウザで確認" : "利用不可", cameraApi);
     setPickerDisabled(!status || role !== "local");
     updateMarkdownAction();
     updateVbaAction();
@@ -907,13 +928,396 @@
     updateOpticalAction();
   }
 
+  async function toggleCamera() {
+    if (state.cameraRunning || state.cameraStarting) {
+      stopCamera(true, false);
+      resetReceivePanel();
+      return;
+    }
+    await startCamera();
+  }
+
+  async function startCamera() {
+    if (state.cameraRunning || state.cameraStarting || !state.status) {
+      return;
+    }
+
+    if (state.opticalSession) {
+      stopOptical();
+    }
+    setOpticalView("receive");
+    resetReceivePanel();
+    state.cameraStarting = true;
+    state.cameraComplete = false;
+    state.cameraPostsInFlight = 0;
+    var generation = ++state.cameraGeneration;
+    setCameraLabel("カメラを準備しています…");
+    updateOpticalAction();
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      finishCameraError(window.isSecureContext
+        ? "このブラウザではカメラを使えません。"
+        : "カメラを使うには https の安全な接続で開いてください。");
+      return;
+    }
+
+    var stream = null;
+    var constraints = {
+      facingMode: "environment",
+      width: { ideal: 1280 },
+      height: { ideal: 960 }
+    };
+    try {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: Object.assign({}, constraints, { frameRate: { exact: 30 } })
+        });
+      } catch (_) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: Object.assign({}, constraints, { frameRate: { ideal: 30 } })
+        });
+      }
+
+      if (generation !== state.cameraGeneration) {
+        stream.getTracks().forEach(function (track) { track.stop(); });
+        return;
+      }
+
+      if (!state.cameraReceiverId) {
+        state.cameraReceiverId = createRemoteId();
+      }
+      await requestJson("/api/optical/receive/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiverId: state.cameraReceiverId })
+      });
+
+      if (generation !== state.cameraGeneration) {
+        stream.getTracks().forEach(function (track) { track.stop(); });
+        return;
+      }
+
+      state.cameraStream = stream;
+      var video = document.getElementById("cameraVideo");
+      video.srcObject = stream;
+      video.hidden = false;
+      await video.play();
+      startCameraWorkers(generation);
+      state.cameraStarting = false;
+      state.cameraRunning = true;
+      document.getElementById("cameraFrame").classList.add("is-live");
+      setCameraLabel("QR を画面中央に合わせてください");
+      setCapability("statusCamera", "利用可能", true);
+      updateOpticalAction();
+      armCameraQuietHint(generation);
+      scheduleCameraFrame(generation);
+    } catch (error) {
+      if (stream) {
+        stream.getTracks().forEach(function (track) { track.stop(); });
+      }
+      if (generation === state.cameraGeneration) {
+        finishCameraError(cameraErrorMessage(error));
+      }
+    }
+  }
+
+  function startCameraWorkers(generation) {
+    stopCameraWorkers();
+    var workerCount = Math.min(4, Math.max(2, navigator.hardwareConcurrency || 2));
+    for (var index = 0; index < workerCount; index++) {
+      (function () {
+        var worker = new Worker("/qr-worker.js?v=__FERRY_BUILD_ID__");
+        var slot = { worker: worker, busy: false, failed: false };
+        worker.onmessage = function (event) {
+          var message = event.data || {};
+          if (message.id === -1) {
+            return;
+          }
+          slot.busy = false;
+          if (generation !== state.cameraGeneration || !state.cameraRunning || !message.bytes) {
+            return;
+          }
+          var bytes = message.bytes instanceof Uint8Array
+            ? message.bytes
+            : new Uint8Array(message.bytes);
+          submitDecodedFrame(bytes, generation);
+        };
+        worker.onerror = function () {
+          slot.busy = false;
+          slot.failed = true;
+          worker.terminate();
+          if (generation === state.cameraGeneration
+              && state.cameraWorkers.every(function (candidate) { return candidate.failed; })) {
+            finishCameraError("QR 読み取り機能を読み込めませんでした。");
+          }
+        };
+        state.cameraWorkers.push(slot);
+      })();
+    }
+  }
+
+  function stopCameraWorkers() {
+    state.cameraWorkers.forEach(function (slot) {
+      slot.worker.terminate();
+    });
+    state.cameraWorkers = [];
+  }
+
+  function scheduleCameraFrame(generation) {
+    if (generation !== state.cameraGeneration || !state.cameraRunning) {
+      return;
+    }
+    var video = document.getElementById("cameraVideo");
+    var next = function () {
+      if (generation !== state.cameraGeneration || !state.cameraRunning) {
+        return;
+      }
+      captureCameraFrame(generation);
+      scheduleCameraFrame(generation);
+    };
+    if (typeof video.requestVideoFrameCallback === "function") {
+      video.requestVideoFrameCallback(next);
+    } else {
+      window.requestAnimationFrame(next);
+    }
+  }
+
+  function captureCameraFrame(generation) {
+    var slot = state.cameraWorkers.find(function (candidate) {
+      return !candidate.busy && !candidate.failed;
+    });
+    if (!slot) {
+      return;
+    }
+
+    var video = document.getElementById("cameraVideo");
+    var width = video.videoWidth;
+    var height = video.videoHeight;
+    if (!width || !height) {
+      return;
+    }
+    if (cameraCanvas.width !== width || cameraCanvas.height !== height) {
+      cameraCanvas.width = width;
+      cameraCanvas.height = height;
+    }
+
+    try {
+      var context = cameraCanvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(video, 0, 0, width, height);
+      var image = context.getImageData(0, 0, width, height);
+      slot.busy = true;
+      slot.worker.postMessage({
+        id: state.cameraFrameId++,
+        buf: image.data.buffer,
+        w: width,
+        h: height
+      }, [image.data.buffer]);
+    } catch (error) {
+      slot.busy = false;
+      if (generation === state.cameraGeneration) {
+        finishCameraError(cameraErrorMessage(error));
+      }
+    }
+  }
+
+  async function submitDecodedFrame(bytes, generation) {
+    if (generation !== state.cameraGeneration
+        || !state.cameraRunning
+        || state.cameraComplete
+        || state.cameraPostsInFlight >= 4) {
+      return;
+    }
+
+    state.cameraPostsInFlight++;
+    try {
+      var result = await requestJson("/api/optical/receive/frame", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receiverId: state.cameraReceiverId,
+          frame: bytesToBase64(bytes),
+          openWhenDone: document.getElementById("receiveOpenFolder").getAttribute("aria-checked") === "true"
+        })
+      });
+      if (generation === state.cameraGeneration && state.cameraRunning) {
+        applyReceiveProgress(result);
+      }
+    } catch (error) {
+      if (generation === state.cameraGeneration) {
+        finishCameraError(errorMessage(error));
+      }
+    } finally {
+      state.cameraPostsInFlight = Math.max(0, state.cameraPostsInFlight - 1);
+    }
+  }
+
+  function applyReceiveProgress(result) {
+    if (!result || !result.recognized || state.cameraComplete) {
+      return;
+    }
+
+    armCameraQuietHint(state.cameraGeneration);
+    var percent = Math.max(0, Math.min(100, Math.round(Number(result.progress || 0) * 100)));
+    document.getElementById("receiveProgressBar").style.width = percent + "%";
+    document.getElementById("receiveState").textContent = result.complete ? "受信完了" : "受信中 " + percent + "%";
+    document.getElementById("receiveRate").textContent = formatRate(result.kilobytesPerSecond);
+    document.getElementById("receiveFrames").textContent = Number(result.framesCollected || 0).toLocaleString("ja-JP") + " 枚";
+    document.getElementById("receiveDetail").textContent =
+      Number(result.solvedBlocks || 0).toLocaleString("ja-JP") + " / " +
+      Number(result.sourceBlocks || 0).toLocaleString("ja-JP") + " ブロック";
+    document.getElementById("receiveItem").textContent = formatBytes(result.totalBytes) + " の転送";
+    setCameraLabel(result.complete ? "受信完了" : "QR を読み取っています…");
+
+    if (!result.complete) {
+      return;
+    }
+
+    state.cameraComplete = true;
+    document.getElementById("cameraFrame").classList.add("is-complete");
+    document.getElementById("receiveProgressBar").style.width = "100%";
+    document.getElementById("receiveDetail").textContent =
+      Number(result.fileCount || 0).toLocaleString("ja-JP") + " ファイルを検算して保存しました";
+    document.getElementById("receiveItem").textContent =
+      (result.label || "受信データ") + "（" + Number(result.fileCount || 0).toLocaleString("ja-JP") + " ファイル）";
+    var output = document.getElementById("receiveOutputPath");
+    output.textContent = result.outputPath || ".\\output";
+    output.title = result.outputPath || "";
+    stopCamera(false, true);
+    setCameraLabel("受信完了");
+    showToast(Number(result.fileCount || 0).toLocaleString("ja-JP") + " ファイルを受け取りました");
+    if (result.openError) {
+      showToast("受信は完了しました。フォルダを開けませんでした: " + result.openError);
+    }
+  }
+
+  function stopCamera(clearServer, keepLabel) {
+    state.cameraGeneration++;
+    window.clearTimeout(state.cameraQuietTimer);
+    state.cameraQuietTimer = null;
+    stopCameraWorkers();
+    if (state.cameraStream) {
+      state.cameraStream.getTracks().forEach(function (track) { track.stop(); });
+    }
+    state.cameraStream = null;
+    state.cameraStarting = false;
+    state.cameraRunning = false;
+    document.getElementById("cameraFrame").classList.remove("is-live");
+    var video = document.getElementById("cameraVideo");
+    video.pause();
+    video.srcObject = null;
+    video.hidden = true;
+    if (!keepLabel) {
+      setCameraLabel("カメラは未接続");
+    }
+    if (clearServer && state.cameraReceiverId) {
+      fetch("/api/optical/receive/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiverId: state.cameraReceiverId })
+      }).catch(function () {});
+    }
+    updateOpticalAction();
+  }
+
+  function finishCameraError(message) {
+    stopCamera(true, true);
+    setCameraLabel(message);
+    document.getElementById("receiveState").textContent = "読み取り停止";
+    document.getElementById("receiveDetail").textContent = message;
+    showToast(message);
+  }
+
+  function resetReceivePanel() {
+    state.cameraComplete = false;
+    document.getElementById("cameraFrame").classList.remove("is-complete");
+    document.getElementById("receiveState").textContent = "受信待ち";
+    document.getElementById("receiveRate").textContent = "0 KB/s";
+    document.getElementById("receiveProgressBar").style.width = "0%";
+    document.getElementById("receiveDetail").textContent = "フレームを待っています";
+    document.getElementById("receiveFrames").textContent = "0 枚";
+    document.getElementById("receiveItem").textContent = "未定";
+    var output = document.getElementById("receiveOutputPath");
+    output.textContent = ".\\output\\受信名_YYYYMMDD-HHmm";
+    output.title = "";
+  }
+
+  function armCameraQuietHint(generation) {
+    window.clearTimeout(state.cameraQuietTimer);
+    state.cameraQuietTimer = window.setTimeout(function () {
+      if (generation !== state.cameraGeneration || !state.cameraRunning || state.cameraComplete) {
+        return;
+      }
+      setCameraLabel("QR が見つかりません。画面中央へ合わせてください");
+      if (document.getElementById("receiveFrames").textContent === "0 枚") {
+        document.getElementById("receiveDetail").textContent =
+          "読めないときは送信側の「1 枚に載せる量」を下げてください";
+      }
+    }, 8000);
+  }
+
+  function setCameraLabel(message) {
+    document.getElementById("cameraLabel").textContent = message;
+  }
+
+  function cameraErrorMessage(error) {
+    var name = error && error.name ? error.name : "";
+    if (name === "NotAllowedError" || name === "SecurityError") {
+      return "カメラの使用が許可されていません。ブラウザの設定で許可して、もう一度押してください。";
+    }
+    if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+      setCapability("statusCamera", "なし", false);
+      return "カメラが見つかりません。";
+    }
+    if (name === "NotReadableError" || name === "TrackStartError") {
+      return "カメラを開けません。ほかのアプリが使っていないか確認してください。";
+    }
+    return errorMessage(error);
+  }
+
+  function bytesToBase64(bytes) {
+    var binary = "";
+    for (var index = 0; index < bytes.length; index++) {
+      binary += String.fromCharCode(bytes[index]);
+    }
+    return window.btoa(binary);
+  }
+
+  function formatRate(value) {
+    var rate = Math.max(0, Number(value) || 0);
+    return rate.toLocaleString("ja-JP", { maximumFractionDigits: 1 }) + " KB/s";
+  }
+
+  function shutdownCamera() {
+    if (!state.cameraRunning && !state.cameraStarting) {
+      return;
+    }
+    var receiverId = state.cameraReceiverId;
+    stopCamera(false, true);
+    if (!receiverId || !navigator.sendBeacon) {
+      return;
+    }
+    navigator.sendBeacon(
+      "/api/optical/receive/stop",
+      new Blob([JSON.stringify({ receiverId: receiverId })], { type: "application/json" }));
+  }
+
   function updateOpticalAction() {
     updateTransferFormats();
     var hasFiles = state.selections.optical.size > 0;
     document.getElementById("showQr").disabled = state.opticalBusy
       || !state.status
       || !hasFiles;
-    document.getElementById("readLocalCamera").disabled = !state.status;
+    var cameraButton = document.getElementById("readLocalCamera");
+    cameraButton.disabled = !state.status;
+    cameraButton.textContent = state.cameraRunning
+      ? "読み取りを止める"
+      : state.cameraStarting
+        ? "カメラの準備を中止"
+        : state.role === "remote"
+          ? "この端末のカメラで読む"
+          : "この PC のカメラで読む";
     document.getElementById("showRemoteQr").disabled = state.opticalBusy
       || state.role !== "local"
       || state.remotes.length === 0
@@ -1139,7 +1543,7 @@
       }
       startOptical(command);
     } else if (command.action === "readCamera") {
-      setOpticalView("receive");
+      startCamera();
     }
   }
 

@@ -21,6 +21,7 @@ namespace Ferry
         private readonly string _outputRoot;
         private readonly Action _requestShutdown;
         private readonly OpticalService _optical = new OpticalService();
+        private readonly OpticalReceiveService _opticalReceiver;
         private readonly RemoteControlRegistry _remotes = new RemoteControlRegistry();
         private readonly TailnetDiscovery _tailnet = new TailnetDiscovery();
 
@@ -35,6 +36,7 @@ namespace Ferry
             _state = state;
             _initialMode = initialMode;
             _outputRoot = Path.GetFullPath(outputRoot);
+            _opticalReceiver = new OpticalReceiveService(_outputRoot);
             _requestShutdown = requestShutdown;
         }
 
@@ -545,6 +547,44 @@ namespace Ferry
                 return;
             }
 
+            if (request.HttpMethod == "POST" && path == "/api/optical/receive/start")
+            {
+                var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
+                _opticalReceiver.Reset(ReadString(body, "receiverId"));
+                await WriteJsonAsync(context, HttpStatusCode.OK, new { Started = true });
+                return;
+            }
+
+            if (request.HttpMethod == "POST" && path == "/api/optical/receive/frame")
+            {
+                var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
+                var receiverId = ReadString(body, "receiverId");
+                var encodedFrame = ReadString(body, "frame");
+                byte[] frame;
+                try
+                {
+                    frame = Convert.FromBase64String(encodedFrame);
+                }
+                catch (System.FormatException exception)
+                {
+                    throw new ArgumentException("読み取った QR の内容が壊れています。", exception);
+                }
+                var result = _opticalReceiver.AddFrame(
+                    receiverId,
+                    frame,
+                    ReadOptionalBool(body, "openWhenDone", true));
+                await WriteJsonAsync(context, HttpStatusCode.OK, result);
+                return;
+            }
+
+            if (request.HttpMethod == "POST" && path == "/api/optical/receive/stop")
+            {
+                var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
+                _opticalReceiver.Stop(ReadString(body, "receiverId"));
+                await WriteJsonAsync(context, HttpStatusCode.OK, new { Stopped = true });
+                return;
+            }
+
             if (request.HttpMethod == "GET" && path == "/api/optical/frame")
             {
                 var token = request.QueryString["token"];
@@ -730,7 +770,7 @@ namespace Ferry
                     Word = PlatformInfo.IsWindows && WordIsRegistered(),
                     WindowsOcr = PlatformInfo.IsWindows && Environment.OSVersion.Version.Major >= 10,
                     NativePicker = NativePicker.IsAvailable,
-                    Camera = "unchecked"
+                    Camera = "browser"
                 }
             };
         }
@@ -816,6 +856,17 @@ namespace Ferry
                     "数値の指定が正しくありません: " + propertyName,
                     exception);
             }
+        }
+
+        private static bool ReadOptionalBool(
+            Dictionary<string, object> body,
+            string propertyName,
+            bool fallback)
+        {
+            object value;
+            return body.TryGetValue(propertyName, out value) && value is bool
+                ? (bool)value
+                : fallback;
         }
 
         private static void RequireLocal(string role, string message)
@@ -987,8 +1038,9 @@ namespace Ferry
         private static void AddSecurityHeaders(HttpListenerResponse response)
         {
             response.Headers["Content-Security-Policy"] =
-                "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
-                "media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; " +
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; " +
+                "style-src 'self'; img-src 'self' data:; media-src 'self' blob:; " +
+                "connect-src 'self'; frame-ancestors 'none'; " +
                 "base-uri 'none'; form-action 'self'";
             response.Headers["Permissions-Policy"] =
                 "camera=(self), microphone=(), geolocation=()";

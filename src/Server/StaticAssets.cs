@@ -49,6 +49,8 @@ namespace Ferry
             return File.Exists(Path.Combine(webDirectory, "index.html"))
                 && File.Exists(Path.Combine(webDirectory, "app.css"))
                 && File.Exists(Path.Combine(webDirectory, "app.js"))
+                && File.Exists(Path.Combine(webDirectory, "qr-worker.js"))
+                && File.Exists(Path.Combine(webDirectory, "zxing_reader-EOacYbLr.wasm"))
                 && File.Exists(Path.Combine(webDirectory, "icon.svg"))
                 && File.Exists(Path.Combine(webDirectory, "manifest.webmanifest"))
                 && File.Exists(Path.Combine(webDirectory, "service-worker.js"));
@@ -124,6 +126,8 @@ namespace Ferry
                 { "/index.html", LoadFile(webDirectory, "index.html", "text/html; charset=utf-8", false) },
                 { "/app.css", LoadFile(webDirectory, "app.css", "text/css; charset=utf-8", true) },
                 { "/app.js", LoadFile(webDirectory, "app.js", "text/javascript; charset=utf-8", true) },
+                { "/qr-worker.js", LoadFile(webDirectory, "qr-worker.js", "text/javascript; charset=utf-8", true) },
+                { "/zxing_reader-EOacYbLr.wasm", LoadFile(webDirectory, "zxing_reader-EOacYbLr.wasm", "application/wasm", true) },
                 { "/icon.svg", LoadFile(webDirectory, "icon.svg", "image/svg+xml", true) },
                 { "/manifest.webmanifest", LoadFile(webDirectory, "manifest.webmanifest", "application/manifest+json; charset=utf-8", true) },
                 { "/service-worker.js", LoadFile(webDirectory, "service-worker.js", "text/javascript; charset=utf-8", true) }
@@ -149,6 +153,8 @@ namespace Ferry
                 { "/index.html", LoadResource("Ferry.Web.index.html", "text/html; charset=utf-8", false) },
                 { "/app.css", LoadResource("Ferry.Web.app.css", "text/css; charset=utf-8", true) },
                 { "/app.js", LoadResource("Ferry.Web.app.js", "text/javascript; charset=utf-8", true) },
+                { "/qr-worker.js", LoadResource("Ferry.Web.qr-worker.js", "text/javascript; charset=utf-8", true) },
+                { "/zxing_reader-EOacYbLr.wasm", LoadResource("Ferry.Web.zxing_reader-EOacYbLr.wasm", "application/wasm", true) },
                 { "/icon.svg", LoadResource("Ferry.Web.icon.svg", "image/svg+xml", true) },
                 { "/manifest.webmanifest", LoadResource("Ferry.Web.manifest.webmanifest", "application/manifest+json; charset=utf-8", true) },
                 { "/service-worker.js", LoadResource("Ferry.Web.service-worker.js", "text/javascript; charset=utf-8", true) }

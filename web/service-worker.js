@@ -6,6 +6,8 @@ var SHELL = [
   "/",
   "/app.css?v=" + BUILD_ID,
   "/app.js?v=" + BUILD_ID,
+  "/qr-worker.js?v=" + BUILD_ID,
+  "/zxing_reader-EOacYbLr.wasm",
   "/icon.svg?v=" + BUILD_ID,
   "/manifest.webmanifest?v=" + BUILD_ID
 ];

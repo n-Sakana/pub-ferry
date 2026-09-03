@@ -25,11 +25,15 @@
     <EmbeddedResource Include="web/index.html" LogicalName="Ferry.Web.index.html" />
     <EmbeddedResource Include="web/app.css" LogicalName="Ferry.Web.app.css" />
     <EmbeddedResource Include="web/app.js" LogicalName="Ferry.Web.app.js" />
+    <EmbeddedResource Include="web/qr-worker.js" LogicalName="Ferry.Web.qr-worker.js" />
+    <EmbeddedResource Include="web/zxing_reader-EOacYbLr.wasm" LogicalName="Ferry.Web.zxing_reader-EOacYbLr.wasm" />
     <EmbeddedResource Include="web/icon.svg" LogicalName="Ferry.Web.icon.svg" />
     <EmbeddedResource Include="web/manifest.webmanifest" LogicalName="Ferry.Web.manifest.webmanifest" />
     <EmbeddedResource Include="web/service-worker.js" LogicalName="Ferry.Web.service-worker.js" />
 
     <None Update="lib\zxing.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Update="lib\LICENSE-ZXing.Net.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="lib\LICENSE-zxing-cpp.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="lib\LICENSE-zxing-wasm.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

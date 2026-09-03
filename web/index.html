@@ -150,22 +150,23 @@
         </div>
 
         <div data-optical-view="receive" hidden>
-          <section class="camera-frame" aria-label="カメラ映像">
+          <section class="camera-frame" id="cameraFrame" aria-label="カメラ映像">
+            <video class="camera-video" id="cameraVideo" autoplay muted playsinline hidden></video>
             <div class="camera-reticle"><svg aria-hidden="true"><use href="#icon-camera"></use></svg></div>
-            <div class="camera-label">カメラは未接続</div>
+            <div class="camera-label" id="cameraLabel" aria-live="polite">カメラは未接続</div>
           </section>
           <section class="meter-card" aria-label="受信状況">
-            <div class="meter-line"><span>受信待ち</span><span class="mono">0 KB/s</span></div>
-            <div class="meter-track"><span></span></div>
-            <div class="meter-detail"><span>フレームを待っています</span><span>0 枚</span></div>
+            <div class="meter-line"><span id="receiveState">受信待ち</span><span class="mono" id="receiveRate">0 KB/s</span></div>
+            <div class="meter-track"><span id="receiveProgressBar"></span></div>
+            <div class="meter-detail"><span id="receiveDetail">フレームを待っています</span><span id="receiveFrames">0 枚</span></div>
           </section>
           <h2 class="section-caption">Output</h2>
           <section class="settings-card">
-            <div class="setting-row"><span>受け取るもの</span><span class="secondary">未定</span></div>
-            <div class="setting-row"><span>保存先</span><span class="secondary mono" data-folder-path="optical">読み込み中</span></div>
+            <div class="setting-row"><span>受け取るもの</span><span class="secondary" id="receiveItem">未定</span></div>
+            <div class="setting-row"><span>保存先</span><span class="secondary mono" id="receiveOutputPath">.\output\受信名_YYYYMMDD-HHmm</span></div>
             <div class="setting-row">
               <span>終わったらフォルダを開く</span>
-              <button class="switch is-on" type="button" role="switch" aria-checked="true" aria-label="終わったらフォルダを開く"></button>
+              <button class="switch is-on" id="receiveOpenFolder" type="button" role="switch" aria-checked="true" aria-label="終わったらフォルダを開く"></button>
             </div>
           </section>
         </div>

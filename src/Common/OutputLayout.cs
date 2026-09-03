@@ -19,9 +19,23 @@ namespace Ferry
                 throw new ArgumentException("入力が選ばれていません。", "source");
             }
 
+            return CreateRunDirectory(outputRoot, TargetName(source));
+        }
+
+        public static string CreateRunDirectory(string outputRoot, string targetName)
+        {
+            if (string.IsNullOrWhiteSpace(outputRoot))
+            {
+                throw new ArgumentException("出力フォルダが指定されていません。", "outputRoot");
+            }
+            if (string.IsNullOrWhiteSpace(targetName))
+            {
+                throw new ArgumentException("出力名が指定されていません。", "targetName");
+            }
+
             var root = Path.GetFullPath(outputRoot);
             Directory.CreateDirectory(root);
-            var folderName = SafeFileName(TargetName(source)) + "_" +
+            var folderName = SafeFileName(targetName) + "_" +
                 DateTime.Now.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture);
             var outputDirectory = FindAvailableDirectory(Path.Combine(root, folderName));
             Directory.CreateDirectory(outputDirectory);
