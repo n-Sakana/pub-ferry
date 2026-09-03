@@ -17,9 +17,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="zxing">
+      <HintPath>lib\zxing.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+
     <EmbeddedResource Include="web/index.html" LogicalName="Ferry.Web.index.html" />
     <EmbeddedResource Include="web/app.css" LogicalName="Ferry.Web.app.css" />
     <EmbeddedResource Include="web/app.js" LogicalName="Ferry.Web.app.js" />
     <EmbeddedResource Include="web/icon.svg" LogicalName="Ferry.Web.icon.svg" />
+    <EmbeddedResource Include="web/manifest.webmanifest" LogicalName="Ferry.Web.manifest.webmanifest" />
+    <EmbeddedResource Include="web/service-worker.js" LogicalName="Ferry.Web.service-worker.js" />
+
+    <None Update="lib\zxing.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="lib\LICENSE-ZXing.Net.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

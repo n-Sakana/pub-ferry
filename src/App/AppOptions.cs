@@ -86,7 +86,7 @@ namespace Ferry
             writer.WriteLine("Usage: ferry [options]");
             writer.WriteLine();
             writer.WriteLine("  --port <number>             Local HTTP port (default: {0})", DefaultPort);
-            writer.WriteLine("  --path <folder>             Folder to show when Ferry starts");
+            writer.WriteLine("  --path <file-or-folder>     Input to show when Ferry starts");
             writer.WriteLine("  --mode optical|markdown|vba Page to show when Ferry starts");
             writer.WriteLine("  --no-browser                Do not open the browser automatically");
             writer.WriteLine("  --help                      Show this help");

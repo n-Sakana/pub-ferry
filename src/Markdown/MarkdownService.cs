@@ -1,0 +1,363 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using KnowledgeStudio;
+
+namespace Ferry
+{
+    internal static class MarkdownService
+    {
+        public static MarkdownConversionResult Convert(
+            FolderSnapshot source,
+            IList<string> selectedNames,
+            bool combine,
+            string outputRoot)
+        {
+            var files = ResolveSelectedFiles(source, selectedNames);
+            return WriteCombined(source, files, outputRoot);
+        }
+
+        private static List<FolderFile> ResolveSelectedFiles(
+            FolderSnapshot source,
+            IList<string> selectedNames)
+        {
+            if (source == null)
+            {
+                throw new ArgumentException("入力が選ばれていません。", "source");
+            }
+            if (selectedNames == null || selectedNames.Count == 0)
+            {
+                throw new ArgumentException(
+                    "Markdown にするファイルを1つ以上選んでください。",
+                    "selectedNames");
+            }
+
+            var requested = new HashSet<string>(
+                selectedNames,
+                StringComparer.CurrentCultureIgnoreCase);
+            if (requested.Count != selectedNames.Count)
+            {
+                throw new ArgumentException("同じファイルが複数回指定されています。", "selectedNames");
+            }
+
+            var files = new List<FolderFile>();
+            foreach (var file in source.Files)
+            {
+                if (!requested.Remove(file.Name))
+                {
+                    continue;
+                }
+                if (!file.MarkdownSupported)
+                {
+                    throw new ArgumentException(
+                        string.Format("Markdown 化の対象外です: {0}", file.Name),
+                        "selectedNames");
+                }
+                files.Add(file);
+            }
+
+            if (requested.Count > 0)
+            {
+                foreach (var missing in requested)
+                {
+                    throw new ArgumentException(
+                        string.Format("現在の入力にないファイルです: {0}", missing),
+                        "selectedNames");
+                }
+            }
+            return files;
+        }
+
+        private static MarkdownConversionResult WriteCombined(
+            FolderSnapshot source,
+            List<FolderFile> files,
+            string outputRoot)
+        {
+            var outputDirectory = OutputLayout.CreateRunDirectory(outputRoot, source);
+            var outputPath = FindAvailableFile(Path.Combine(
+                outputDirectory,
+                Path.GetFileName(CombinedOutputPath(source, files))));
+            var failures = new List<MarkdownFailure>();
+            var builder = new StringBuilder();
+            builder.Append("# ");
+            builder.AppendLine(EscapeHeading(SourceTitle(source, files)));
+
+            var converted = 0;
+            foreach (var file in files)
+            {
+                builder.AppendLine();
+                builder.Append("## ");
+                builder.AppendLine(EscapeHeading(file.Name));
+                builder.AppendLine();
+
+                var result = Extract.FromFile(
+                    file.FullPath,
+                    file.Kind.ToLowerInvariant(),
+                    file.Extension);
+                if (result.Succeeded)
+                {
+                    builder.AppendLine(result.Content.TrimEnd('\r', '\n'));
+                    converted++;
+                }
+                else
+                {
+                    var message = string.IsNullOrWhiteSpace(result.Notes)
+                        ? "内容を読み取れませんでした。"
+                        : result.Notes;
+                    builder.Append("> 変換できませんでした: ");
+                    builder.AppendLine(message.Replace("\r", " ").Replace("\n", " "));
+                    failures.Add(new MarkdownFailure(file.Name, message));
+                }
+            }
+
+            WriteUtf8Atomically(outputPath, builder.ToString());
+            return new MarkdownConversionResult(
+                outputPath,
+                1,
+                converted,
+                failures);
+        }
+
+        private static MarkdownConversionResult WriteSeparate(
+            FolderSnapshot source,
+            List<FolderFile> files)
+        {
+            var outputDirectory = FindAvailableDirectory(SeparateOutputDirectory(source));
+            Directory.CreateDirectory(outputDirectory);
+
+            var failures = new List<MarkdownFailure>();
+            var written = 0;
+            foreach (var file in files)
+            {
+                var result = Extract.FromFile(
+                    file.FullPath,
+                    file.Kind.ToLowerInvariant(),
+                    file.Extension);
+                if (!result.Succeeded)
+                {
+                    failures.Add(new MarkdownFailure(
+                        file.Name,
+                        string.IsNullOrWhiteSpace(result.Notes)
+                            ? "内容を読み取れませんでした。"
+                            : result.Notes));
+                    continue;
+                }
+
+                var baseName = Path.GetFileNameWithoutExtension(file.Name);
+                if (file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
+                    || file.Extension.Equals(".markdown", StringComparison.OrdinalIgnoreCase))
+                {
+                    baseName += ".converted";
+                }
+                var outputPath = FindAvailableFile(
+                    Path.Combine(outputDirectory, SafeFileName(baseName) + ".md"));
+                var builder = new StringBuilder();
+                builder.Append("# ");
+                builder.AppendLine(EscapeHeading(file.Name));
+                builder.AppendLine();
+                builder.AppendLine(result.Content.TrimEnd('\r', '\n'));
+                WriteUtf8Atomically(outputPath, builder.ToString());
+                written++;
+            }
+
+            return new MarkdownConversionResult(
+                outputDirectory,
+                written,
+                written,
+                failures);
+        }
+
+        private static string CombinedOutputPath(
+            FolderSnapshot source,
+            IList<FolderFile> files)
+        {
+            if (source.SourceKind == "folder")
+            {
+                var directory = new DirectoryInfo(source.DirectoryPath);
+                if (directory.Parent != null)
+                {
+                    return Path.Combine(
+                        directory.Parent.FullName,
+                        SafeFileName(directory.Name) + ".md");
+                }
+                return Path.Combine(directory.FullName, "Ferry.md");
+            }
+
+            if (files.Count == 1)
+            {
+                var file = files[0];
+                var baseName = Path.GetFileNameWithoutExtension(file.Name);
+                if (file.Extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
+                    || file.Extension.Equals(".markdown", StringComparison.OrdinalIgnoreCase))
+                {
+                    baseName += ".converted";
+                }
+                return Path.Combine(
+                    source.DirectoryPath,
+                    SafeFileName(baseName) + ".md");
+            }
+
+            var parent = new DirectoryInfo(source.DirectoryPath);
+            var name = string.IsNullOrWhiteSpace(parent.Name) ? "selection" : parent.Name;
+            return Path.Combine(parent.FullName, SafeFileName(name) + ".md");
+        }
+
+        private static string SeparateOutputDirectory(FolderSnapshot source)
+        {
+            if (source.SourceKind == "folder")
+            {
+                var directory = new DirectoryInfo(source.DirectoryPath);
+                if (directory.Parent != null)
+                {
+                    return Path.Combine(
+                        directory.Parent.FullName,
+                        SafeFileName(directory.Name) + "-markdown");
+                }
+            }
+            return Path.Combine(source.DirectoryPath, "_markdown");
+        }
+
+        private static string SourceTitle(
+            FolderSnapshot source,
+            IList<FolderFile> files)
+        {
+            if (source.SourceKind == "files" && files.Count == 1)
+            {
+                return Path.GetFileNameWithoutExtension(files[0].Name);
+            }
+
+            var directory = new DirectoryInfo(source.DirectoryPath);
+            return string.IsNullOrWhiteSpace(directory.Name) ? "Ferry" : directory.Name;
+        }
+
+        private static string EscapeHeading(string value)
+        {
+            return (value ?? string.Empty)
+                .Replace("\r", " ")
+                .Replace("\n", " ")
+                .Replace("#", "\\#")
+                .Trim();
+        }
+
+        private static string SafeFileName(string value)
+        {
+            var result = value ?? string.Empty;
+            foreach (var character in Path.GetInvalidFileNameChars())
+            {
+                result = result.Replace(character, '_');
+            }
+            return string.IsNullOrWhiteSpace(result) ? "output" : result.Trim();
+        }
+
+        private static string FindAvailableFile(string requestedPath)
+        {
+            if (!File.Exists(requestedPath) && !Directory.Exists(requestedPath))
+            {
+                return requestedPath;
+            }
+
+            var directory = Path.GetDirectoryName(requestedPath);
+            var baseName = Path.GetFileNameWithoutExtension(requestedPath);
+            var extension = Path.GetExtension(requestedPath);
+            for (var index = 2; index < int.MaxValue; index++)
+            {
+                var candidate = Path.Combine(
+                    directory,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} ({1}){2}",
+                        baseName,
+                        index,
+                        extension));
+                if (!File.Exists(candidate) && !Directory.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+            throw new IOException("空いている出力ファイル名を作れませんでした。");
+        }
+
+        private static string FindAvailableDirectory(string requestedPath)
+        {
+            if (!File.Exists(requestedPath) && !Directory.Exists(requestedPath))
+            {
+                return requestedPath;
+            }
+
+            for (var index = 2; index < int.MaxValue; index++)
+            {
+                var candidate = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} ({1})",
+                    requestedPath,
+                    index);
+                if (!File.Exists(candidate) && !Directory.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+            throw new IOException("空いている出力フォルダ名を作れませんでした。");
+        }
+
+        private static void WriteUtf8Atomically(string path, string content)
+        {
+            var directory = Path.GetDirectoryName(path);
+            if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            {
+                throw new DirectoryNotFoundException(
+                    string.Format("出力先のフォルダがありません: {0}", directory));
+            }
+
+            var temporaryPath = Path.Combine(
+                directory,
+                ".ferry-" + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                File.WriteAllText(temporaryPath, content, new UTF8Encoding(false));
+                File.Move(temporaryPath, path);
+            }
+            finally
+            {
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+        }
+    }
+
+    internal sealed class MarkdownConversionResult
+    {
+        public MarkdownConversionResult(
+            string outputPath,
+            int filesWritten,
+            int convertedCount,
+            List<MarkdownFailure> failures)
+        {
+            OutputPath = outputPath;
+            FilesWritten = filesWritten;
+            ConvertedCount = convertedCount;
+            Failures = failures;
+        }
+
+        public string OutputPath { get; private set; }
+        public int FilesWritten { get; private set; }
+        public int ConvertedCount { get; private set; }
+        public int FailedCount { get { return Failures.Count; } }
+        public List<MarkdownFailure> Failures { get; private set; }
+    }
+
+    internal sealed class MarkdownFailure
+    {
+        public MarkdownFailure(string name, string error)
+        {
+            Name = name;
+            Error = error;
+        }
+
+        public string Name { get; private set; }
+        public string Error { get; private set; }
+    }
+}

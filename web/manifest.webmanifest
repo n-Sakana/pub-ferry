@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "Ferry",
+  "short_name": "Ferry",
+  "description": "PC のフォルダを画面とカメラで運ぶリモコン",
+  "lang": "ja",
+  "start_url": "/?v=__FERRY_BUILD_ID__#optical",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "icons": [
+    {
+      "src": "/icon.svg?v=__FERRY_BUILD_ID__",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

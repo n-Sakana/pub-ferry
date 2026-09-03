@@ -1,0 +1,86 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 9 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 707 >>
+stream
+BT /F1 22 Tf 60 780 Td (???????) Tj ET
+BT /F1 12 Tf 60 750 Td (Knowledge Studio ?????? PDF ???) Tj ET
+BT /F1 12 Tf 60 730 Td (This is page 1 of a synthetic test document.) Tj ET
+0.17 0.38 0.66 RG 1.5 w
+60 700 m 540 700 l S
+60 560 m 540 560 l S
+60 700 m 60 560 l S
+540 700 m 540 560 l S
+60 660 m 540 660 l S
+200 700 m 200 560 l S
+380 700 m 380 560 l S
+BT /F1 11 Tf 70 675 Td (Item) Tj ET
+BT /F1 11 Tf 210 675 Td (Quantity) Tj ET
+BT /F1 11 Tf 390 675 Td (Amount) Tj ET
+BT /F1 11 Tf 70 630 Td (Stationery) Tj ET
+BT /F1 11 Tf 210 630 Td (12) Tj ET
+BT /F1 11 Tf 390 630 Td (4800) Tj ET
+BT /F1 11 Tf 70 595 Td (Books) Tj ET
+BT /F1 11 Tf 210 595 Td (3) Tj ET
+BT /F1 11 Tf 390 595 Td (7200) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 9 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 476 >>
+stream
+BT /F1 22 Tf 60 780 Td (Page 2 - Diagram) Tj ET
+BT /F1 12 Tf 60 750 Td (A simple figure that only makes sense as a picture.) Tj ET
+0.20 0.55 0.35 RG 2 w
+100 640 m 240 640 l 240 560 l 100 560 l h S
+320 640 m 460 640 l 460 560 l 320 560 l h S
+240 600 m 320 600 l S
+300 610 m 320 600 l 300 590 l S
+BT /F1 11 Tf 120 595 Td (Input) Tj ET
+BT /F1 11 Tf 340 595 Td (Output) Tj ET
+BT /F1 12 Tf 60 500 Td (Layout carries meaning here, so the app renders page images too.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 9 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 258 >>
+stream
+BT /F1 22 Tf 60 780 Td (Page 3 - Notes) Tj ET
+BT /F1 12 Tf 60 750 Td (Third page, so that page ordering can be checked.) Tj ET
+BT /F1 12 Tf 60 720 Td (No confidential content: everything here is invented.) Tj ET
+0.66 0.30 0.30 RG 1 w
+60 690 m 540 690 l S
+endstream
+endobj
+9 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000001011 00000 n 
+0000001137 00000 n 
+0000001664 00000 n 
+0000001790 00000 n 
+0000002099 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+2196
+%%EOF
