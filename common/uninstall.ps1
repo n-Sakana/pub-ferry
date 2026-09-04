@@ -201,50 +201,49 @@ function Get-Registrations {
 function Show-RegistrationMenu {
     param(
         [object[]]$Registrations,
-        [int]$Cursor,
-        [hashtable]$Selected
+        [int]$Cursor
     )
 
     if (-not [Console]::IsOutputRedirected) {
         try { [Console]::Clear() } catch {}
     }
     Write-Host "Context menu uninstaller (current user only)" -ForegroundColor Cyan
-    Write-Host "Use Up/Down to move, Space to select, Enter to remove. Esc cancels."
-    Write-Host "Nothing is removed when no item is selected."
+    Write-Host "Use Up/Down to move, Enter to remove. Esc cancels."
     Write-Host ""
+
+    if ($Registrations.Count -eq 0) {
+        Write-Host "No HKCU context-menu registrations were found."
+        return
+    }
 
     for ($index = 0; $index -lt $Registrations.Count; $index++) {
         $registration = $Registrations[$index]
         $cursorMark = if ($index -eq $Cursor) { ">" } else { " " }
-        $selectedMark = if ($Selected.ContainsKey($registration.KeyName)) {
-            "[x]"
-        }
-        else {
-            "[ ]"
-        }
         $color = if ($index -eq $Cursor) { "Yellow" } else { "Gray" }
         Write-Host (
-            "{0} {1} {2}" -f $cursorMark, $selectedMark, $registration.DisplayName) `
+            "{0} {1}" -f $cursorMark, $registration.DisplayName) `
             -ForegroundColor $color
-        Write-Host ("      Key: {0}" -f $registration.KeyName)
-        Write-Host ("      Contexts: {0}" -f ($registration.ContextDetails -join ", "))
-        if ($registration.CommandPaths.Count -eq 0) {
-            Write-Host "      Command paths: (none found)"
+    }
+
+    $current = $Registrations[$Cursor]
+    Write-Host ""
+    Write-Host "Current item:" -ForegroundColor Cyan
+    Write-Host ("  Key: {0}" -f $current.KeyName)
+    Write-Host ("  Contexts: {0}" -f ($current.ContextDetails -join ", "))
+    if ($current.CommandPaths.Count -eq 0) {
+        Write-Host "  Command paths: (none found)"
+    }
+    else {
+        Write-Host "  Command paths:"
+        foreach ($path in $current.CommandPaths) {
+            Write-Host ("    {0}" -f $path)
         }
-        else {
-            Write-Host "      Command paths:"
-            foreach ($path in $registration.CommandPaths) {
-                Write-Host ("        {0}" -f $path)
-            }
-        }
-        Write-Host ""
     }
 }
 
 function Select-Registrations {
     param([object[]]$Registrations)
 
-    $selected = @{}
     if ($Registrations.Count -eq 0) {
         Write-Host "No HKCU context-menu registrations were found."
         return @()
@@ -252,7 +251,7 @@ function Select-Registrations {
 
     $cursor = 0
     while ($true) {
-        Show-RegistrationMenu $Registrations $cursor $selected
+        Show-RegistrationMenu $Registrations $cursor
         $key = [Console]::ReadKey($true)
         if ($key.Key -eq [ConsoleKey]::UpArrow) {
             $cursor = ($cursor + $Registrations.Count - 1) % $Registrations.Count
@@ -260,26 +259,11 @@ function Select-Registrations {
         elseif ($key.Key -eq [ConsoleKey]::DownArrow) {
             $cursor = ($cursor + 1) % $Registrations.Count
         }
-        elseif ($key.Key -eq [ConsoleKey]::Spacebar) {
-            $keyName = $Registrations[$cursor].KeyName
-            if ($selected.ContainsKey($keyName)) {
-                $selected.Remove($keyName)
-            }
-            else {
-                $selected[$keyName] = $true
-            }
-        }
         elseif ($key.Key -eq [ConsoleKey]::Escape) {
             return @()
         }
         elseif ($key.Key -eq [ConsoleKey]::Enter) {
-            $result = @()
-            foreach ($registration in $Registrations) {
-                if ($selected.ContainsKey($registration.KeyName)) {
-                    $result += $registration
-                }
-            }
-            return $result
+            return @($Registrations[$cursor])
         }
     }
 }
@@ -412,7 +396,7 @@ function Test-RegistrationRemoved {
 try {
     $registrations = @(Get-Registrations)
     if ($ListOnly) {
-        Show-RegistrationMenu $registrations 0 @{}
+        Show-RegistrationMenu $registrations 0
         exit 0
     }
     $selected = @(Select-Registrations $registrations)
