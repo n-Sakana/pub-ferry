@@ -221,6 +221,44 @@ namespace Ferry
                 return;
             }
 
+            if (request.HttpMethod == "GET" && path == "/api/remote-entry")
+            {
+                RequireLocal(role, "スマホ連携の入口はこの PC で確認してください。");
+                var device = await ReadCurrentTailnetDeviceAsync();
+                if (device == null)
+                {
+                    await WriteJsonAsync(
+                        context,
+                        HttpStatusCode.ServiceUnavailable,
+                        new ErrorBody("Tailscale のスマホ連携 URL を取得できませんでした。"));
+                    return;
+                }
+                await WriteJsonAsync(
+                    context,
+                    HttpStatusCode.OK,
+                    new { Url = device.Url });
+                return;
+            }
+
+            if (request.HttpMethod == "GET" && path == "/api/remote-entry/qr")
+            {
+                RequireLocal(role, "スマホ連携の QR はこの PC で表示してください。");
+                var device = await ReadCurrentTailnetDeviceAsync();
+                if (device == null)
+                {
+                    await WriteJsonAsync(
+                        context,
+                        HttpStatusCode.ServiceUnavailable,
+                        new ErrorBody("Tailscale のスマホ連携 URL を取得できませんでした。"));
+                    return;
+                }
+                await WriteBytesAsync(
+                    context,
+                    "image/svg+xml; charset=utf-8",
+                    OpticalService.RenderTextQr(device.Url));
+                return;
+            }
+
             if (request.HttpMethod == "GET" && path == "/api/remotes")
             {
                 RequireLocal(role, "リモコンの一覧はこの PC で確認してください。");
@@ -589,13 +627,20 @@ namespace Ferry
             {
                 var token = request.QueryString["token"];
                 uint sequence;
-                byte[] svg;
-                if (!uint.TryParse(
+                byte[] frame = null;
+                var raster = string.Equals(
+                    request.QueryString["format"],
+                    "raster",
+                    StringComparison.OrdinalIgnoreCase);
+                var validSequence = uint.TryParse(
                         request.QueryString["seq"],
                         System.Globalization.NumberStyles.None,
                         System.Globalization.CultureInfo.InvariantCulture,
-                        out sequence)
-                    || !_optical.TryRenderFrame(token, sequence, out svg))
+                        out sequence);
+                var rendered = validSequence && (raster
+                    ? _optical.TryRenderRasterFrame(token, sequence, out frame)
+                    : _optical.TryRenderFrame(token, sequence, out frame));
+                if (!rendered)
                 {
                     await WriteJsonAsync(
                         context,
@@ -603,7 +648,10 @@ namespace Ferry
                         new ErrorBody("光学転送の表示は終了しました。"));
                     return;
                 }
-                await WriteBytesAsync(context, "image/svg+xml; charset=utf-8", svg);
+                await WriteBytesAsync(
+                    context,
+                    raster ? "application/octet-stream" : "image/svg+xml; charset=utf-8",
+                    frame);
                 return;
             }
 
@@ -773,6 +821,19 @@ namespace Ferry
                     Camera = "browser"
                 }
             };
+        }
+
+        private async Task<TailnetDevice> ReadCurrentTailnetDeviceAsync()
+        {
+            var devices = await _tailnet.ReadAsync();
+            foreach (var device in devices)
+            {
+                if (device.Current && !string.IsNullOrWhiteSpace(device.Url))
+                {
+                    return device;
+                }
+            }
+            return null;
         }
 
         private static string ReadMode(Dictionary<string, object> body)

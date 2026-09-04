@@ -340,6 +340,47 @@ button.small {
   background: var(--success);
 }
 
+.pairing-card {
+  margin: 7px 7px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--separator);
+  text-align: center;
+}
+
+.pairing-qr {
+  display: block;
+  width: 128px;
+  height: 128px;
+  margin: 0 auto;
+  border-radius: 3px;
+  background: #ffffff;
+}
+
+.pairing-copy,
+.pairing-help,
+.pairing-url {
+  margin: 7px 0 0;
+}
+
+.pairing-copy {
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.pairing-help,
+.pairing-url {
+  color: var(--secondary);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.pairing-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .capability-list {
   margin: auto 0 0;
   padding: 10px 8px 0;
@@ -1289,6 +1330,16 @@ button.small {
   border-radius: 2px;
   background: #ffffff;
   image-rendering: pixelated;
+}
+
+.role-remote .qr-frame {
+  max-width: none;
+  max-height: none;
+}
+
+.role-remote .qr-controls,
+.role-remote .qr-hint {
+  display: none;
 }
 
 .qr-controls {

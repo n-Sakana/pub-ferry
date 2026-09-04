@@ -58,6 +58,13 @@
           <span class="device-tag" id="platformTag">この PC</span>
         </div>
         <div class="connected-remotes" id="connectedRemotes" aria-live="polite"></div>
+        <section class="pairing-card" id="pairingCard" aria-labelledby="pairingTitle">
+          <h3 class="visually-hidden" id="pairingTitle">スマホ連携</h3>
+          <img class="pairing-qr" id="pairingQr" width="128" height="128" alt="スマホ用 Ferry PWA を開く QR コード" hidden>
+          <p class="pairing-copy" id="pairingStatus" aria-live="polite">スマホ連携を準備しています</p>
+          <p class="pairing-help" id="pairingHelp" hidden>スマホで読むと PWA が開き、この PC につながります。</p>
+          <p class="pairing-url mono" id="pairingUrl" hidden></p>
+        </section>
       </section>
 
       <dl class="capability-list">
@@ -277,7 +284,7 @@
   <section class="qr-overlay" id="qrOverlay" role="dialog" aria-modal="true" aria-labelledby="qrDialogTitle" hidden>
     <h2 class="visually-hidden" id="qrDialogTitle">光学転送の QR コード</h2>
     <button class="qr-close" id="closeQr" type="button" aria-label="QR 表示を閉じる">×</button>
-    <img class="qr-frame" id="qrFrame" alt="光学転送中の QR コード">
+    <canvas class="qr-frame" id="qrFrame" width="1" height="1" role="img" aria-label="光学転送中の QR コード"></canvas>
     <div class="qr-controls" aria-label="QR の大きさ">
       <button id="smallerQr" type="button" aria-label="QR を小さくする">−</button>
       <output id="qrSizeOutput">5.8 cm</output>

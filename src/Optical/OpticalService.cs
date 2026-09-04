@@ -52,6 +52,11 @@ namespace Ferry
             return session.Describe();
         }
 
+        public static byte[] RenderTextQr(string value)
+        {
+            return OpticalSession.RenderTextQr(value);
+        }
+
         public bool TryRenderFrame(
             string token,
             uint sequence,
@@ -70,6 +75,27 @@ namespace Ferry
             }
 
             svg = session.RenderFrame(sequence);
+            return true;
+        }
+
+        public bool TryRenderRasterFrame(
+            string token,
+            uint sequence,
+            out byte[] rgba)
+        {
+            OpticalSession session;
+            lock (_gate)
+            {
+                session = _active;
+            }
+
+            if (session == null || !session.Matches(token))
+            {
+                rgba = null;
+                return false;
+            }
+
+            rgba = session.RenderRasterFrame(sequence);
             return true;
         }
 
@@ -187,6 +213,27 @@ namespace Ferry
             byte[] frame;
             QRCode qr;
             Encode(sequence, out frame, out qr);
+            return RenderSvg(qr.Matrix, QuietZone);
+        }
+
+        public byte[] RenderRasterFrame(uint sequence)
+        {
+            byte[] frame;
+            QRCode qr;
+            Encode(sequence, out frame, out qr);
+            return RenderRgba(qr.Matrix, QuietZone);
+        }
+
+        internal static byte[] RenderTextQr(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException("QR コードにする文字列が空です。", "value");
+            }
+
+            var expected = Encoding.UTF8.GetBytes(value);
+            var qr = CreateQr(expected);
+            ValidateQrRoundTrip(expected, qr);
             return RenderSvg(qr.Matrix, QuietZone);
         }
 
@@ -318,6 +365,37 @@ namespace Ferry
 
             builder.Append("\"/></svg>");
             return new UTF8Encoding(false).GetBytes(builder.ToString());
+        }
+
+        private static byte[] RenderRgba(ByteMatrix matrix, int quietZone)
+        {
+            var side = matrix.Width + quietZone * 2;
+            var pixels = new byte[checked(side * side * 4)];
+            for (var index = 0; index < pixels.Length; index += 4)
+            {
+                pixels[index] = 255;
+                pixels[index + 1] = 255;
+                pixels[index + 2] = 255;
+                pixels[index + 3] = 255;
+            }
+
+            for (var y = 0; y < matrix.Height; y++)
+            {
+                for (var x = 0; x < matrix.Width; x++)
+                {
+                    if (matrix[x, y] == 0)
+                    {
+                        continue;
+                    }
+
+                    var offset = ((y + quietZone) * side + x + quietZone) * 4;
+                    pixels[offset] = 0;
+                    pixels[offset + 1] = 0;
+                    pixels[offset + 2] = 0;
+                }
+            }
+
+            return pixels;
         }
 
         private static ushort NewSessionId()

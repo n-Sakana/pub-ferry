@@ -27,8 +27,7 @@
     opticalView: "send",
     opticalBusy: false,
     opticalSession: null,
-    opticalSequence: 0,
-    opticalTimer: null,
+    opticalRenderer: null,
     qrSizeIndex: 2,
     cameraStream: null,
     cameraWorkers: [],
@@ -76,6 +75,7 @@
       startRemoteConnection();
     } else if (state.role === "local") {
       pollConnectedRemotes();
+      loadRemoteEntry();
     }
 
     var modes = state.role === "remote" ? ["optical"] : ["optical", "markdown", "vba"];
@@ -191,6 +191,11 @@
     });
     window.addEventListener("pagehide", disconnectRemote);
     window.addEventListener("pagehide", shutdownCamera);
+    window.addEventListener("resize", function () {
+      if (state.opticalRenderer) {
+        sizeQrCanvas(state.opticalRenderer);
+      }
+    });
     applyQrSize();
   }
 
@@ -845,6 +850,7 @@
     button.setAttribute("aria-busy", "true");
     button.textContent = "QR を準備しています…";
     try {
+      requestScreenWakeLock();
       var result = await requestJson("/api/optical/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -856,12 +862,11 @@
         })
       });
       state.opticalSession = result;
-      state.opticalSequence = 0;
       state.opticalPreviousFocus = document.activeElement;
       document.getElementById("qrProgress").textContent = "最初の QR を描画しています";
       document.getElementById("qrOverlay").hidden = false;
       document.getElementById("closeQr").focus({ preventScroll: true });
-      requestNextQrFrame();
+      startQrRenderer(result);
     } catch (error) {
       showToast(errorMessage(error));
     } finally {
@@ -872,44 +877,182 @@
     }
   }
 
-  function requestNextQrFrame() {
-    var session = state.opticalSession;
-    if (!session) {
-      return;
-    }
+  function startQrRenderer(session) {
+    var side = 17 + 4 * Number(session.qrVersion) + 8;
+    var renderer = {
+      session: session,
+      side: side,
+      nextSequence: 0,
+      queue: [],
+      staging: document.createElement("canvas"),
+      interval: 1000 / session.framesPerSecond,
+      nextAt: performance.now(),
+      animationFrame: 0,
+      stopped: false
+    };
+    renderer.staging.width = side;
+    renderer.staging.height = side;
+    state.opticalRenderer = renderer;
+    sizeQrCanvas(renderer);
+    pumpQrFrames(renderer, 3);
 
-    var image = document.getElementById("qrFrame");
-    var sequence = state.opticalSequence >>> 0;
-    var started = performance.now();
-    image.onload = function () {
-      if (!state.opticalSession || state.opticalSession.token !== session.token) {
+    var tick = function (now) {
+      if (!isCurrentQrRenderer(renderer)) {
         return;
       }
-      var number = sequence + 1;
+      renderer.animationFrame = window.requestAnimationFrame(tick);
+      if (now < renderer.nextAt) {
+        return;
+      }
+
+      var entry = renderer.queue[0];
+      if (!entry || !entry.image) {
+        renderer.nextAt = now + renderer.interval;
+        return;
+      }
+
+      renderer.queue.shift();
+      pumpQrFrames(renderer, 1);
+      drawQrFrame(renderer, entry.image);
+      var number = entry.sequence + 1;
       document.getElementById("qrProgress").textContent =
         "フレーム " + number.toLocaleString("ja-JP") +
         " ・ 元ブロック " + session.sourceBlocks.toLocaleString("ja-JP") +
         " ・ 最短 " + formatSeconds(session.minimumSeconds);
-      state.opticalSequence = sequence === 0xffffffff ? 0 : sequence + 1;
-      var interval = 1000 / session.framesPerSecond;
-      var delay = Math.max(0, interval - (performance.now() - started));
-      state.opticalTimer = window.setTimeout(requestNextQrFrame, delay);
-    };
-    image.onerror = function () {
-      if (state.opticalSession && state.opticalSession.token === session.token) {
-        showToast("QR コードの表示を続けられませんでした。");
-        stopOptical();
+      renderer.nextAt += renderer.interval;
+      if (now - renderer.nextAt > 3 * renderer.interval) {
+        renderer.nextAt = now + renderer.interval;
       }
     };
-    image.src = "/api/optical/frame?token=" + encodeURIComponent(session.token) + "&seq=" + sequence;
+    renderer.animationFrame = window.requestAnimationFrame(tick);
+  }
+
+  function pumpQrFrames(renderer, maximum) {
+    for (var count = 0; count < maximum && renderer.queue.length < 3; count++) {
+      var entry = {
+        sequence: renderer.nextSequence >>> 0,
+        image: null,
+        failures: 0,
+        retryTimer: null
+      };
+      renderer.nextSequence = entry.sequence === 0xffffffff ? 0 : entry.sequence + 1;
+      renderer.queue.push(entry);
+      fetchQrFrame(renderer, entry);
+    }
+  }
+
+  function fetchQrFrame(renderer, entry) {
+    if (!isCurrentQrRenderer(renderer)) {
+      return;
+    }
+    var url = "/api/optical/frame?format=raster&token=" +
+      encodeURIComponent(renderer.session.token) + "&seq=" + entry.sequence;
+    fetch(url, { cache: "no-store" }).then(function (response) {
+      if (!response.ok) {
+        throw new Error("QR frame HTTP " + response.status);
+      }
+      return response.arrayBuffer();
+    }).then(function (buffer) {
+      if (!isCurrentQrRenderer(renderer)) {
+        return;
+      }
+      var expected = renderer.side * renderer.side * 4;
+      if (buffer.byteLength !== expected) {
+        throw new Error("QR frame length " + buffer.byteLength + " / " + expected);
+      }
+      entry.image = new ImageData(new Uint8ClampedArray(buffer), renderer.side, renderer.side);
+    }).catch(function () {
+      if (!isCurrentQrRenderer(renderer)) {
+        return;
+      }
+      entry.failures++;
+      if (entry.failures >= 5) {
+        showToast("QR コードの表示を続けられませんでした。");
+        stopOptical();
+        return;
+      }
+      if (renderer.queue[0] === entry) {
+        document.getElementById("qrProgress").textContent = "QR の通信を待っています…";
+      }
+      var delay = Math.min(800, 100 * Math.pow(2, entry.failures - 1));
+      entry.retryTimer = window.setTimeout(function () {
+        entry.retryTimer = null;
+        fetchQrFrame(renderer, entry);
+      }, delay);
+    });
+  }
+
+  function drawQrFrame(renderer, image) {
+    var stagingContext = renderer.staging.getContext("2d");
+    stagingContext.putImageData(image, 0, 0);
+    var canvas = document.getElementById("qrFrame");
+    var context = canvas.getContext("2d");
+    context.imageSmoothingEnabled = false;
+    context.drawImage(renderer.staging, 0, 0, canvas.width, canvas.height);
+  }
+
+  function sizeQrCanvas(renderer) {
+    if (!isCurrentQrRenderer(renderer)) {
+      return;
+    }
+    var canvas = document.getElementById("qrFrame");
+    var dpr = window.devicePixelRatio || 1;
+    canvas.style.removeProperty("width");
+    canvas.style.removeProperty("height");
+
+    if (state.role === "remote") {
+      var overlay = document.getElementById("qrOverlay");
+      var overlayStyle = getComputedStyle(overlay);
+      var horizontalChrome = Number.parseFloat(overlayStyle.paddingLeft) +
+        Number.parseFloat(overlayStyle.paddingRight) +
+        Number.parseFloat(overlayStyle.borderLeftWidth) +
+        Number.parseFloat(overlayStyle.borderRightWidth);
+      var containerWidth = overlay.getBoundingClientRect().width || window.innerWidth;
+      var viewportBudget = 0.9 * Math.min(window.innerWidth, window.innerHeight);
+      var cssBudget = Math.max(1, Math.min(viewportBudget, containerWidth - horizontalChrome, 900));
+      var scale = Math.max(1, Math.floor(cssBudget * dpr / renderer.side));
+      canvas.width = renderer.side * scale;
+      canvas.height = renderer.side * scale;
+      canvas.style.width = (canvas.width / dpr) + "px";
+      canvas.style.height = (canvas.height / dpr) + "px";
+      return;
+    }
+
+    var bounds = canvas.getBoundingClientRect();
+    var physicalSide = Math.max(renderer.side, Math.round(bounds.width * dpr));
+    canvas.width = physicalSide;
+    canvas.height = physicalSide;
+    canvas.style.width = bounds.width + "px";
+    canvas.style.height = bounds.height + "px";
+  }
+
+  function isCurrentQrRenderer(renderer) {
+    return !renderer.stopped && state.opticalRenderer === renderer &&
+      state.opticalSession && state.opticalSession.token === renderer.session.token;
+  }
+
+  async function requestScreenWakeLock() {
+    try {
+      if (navigator.wakeLock) {
+        await navigator.wakeLock.request("screen");
+      }
+    } catch (error) {
+      // The upstream sender treats Wake Lock as best effort.
+    }
   }
 
   function stopOptical() {
-    window.clearTimeout(state.opticalTimer);
-    state.opticalTimer = null;
+    var renderer = state.opticalRenderer;
+    state.opticalRenderer = null;
+    if (renderer) {
+      renderer.stopped = true;
+      window.cancelAnimationFrame(renderer.animationFrame);
+      renderer.queue.forEach(function (entry) {
+        window.clearTimeout(entry.retryTimer);
+      });
+    }
     var session = state.opticalSession;
     state.opticalSession = null;
-    state.opticalSequence = 0;
     var overlay = document.getElementById("qrOverlay");
     if (overlay) {
       overlay.hidden = true;
@@ -1412,6 +1555,9 @@
     document.getElementById("qrSizeOutput").textContent = value.toFixed(1) + " cm";
     document.getElementById("smallerQr").disabled = state.qrSizeIndex === 0;
     document.getElementById("largerQr").disabled = state.qrSizeIndex === sizes.length - 1;
+    if (state.opticalRenderer) {
+      sizeQrCanvas(state.opticalRenderer);
+    }
   }
 
   function formatSeconds(value) {
@@ -1483,6 +1629,41 @@
       row.appendChild(textCell("リモコン", "device-tag"));
       container.appendChild(row);
     });
+  }
+
+  async function loadRemoteEntry() {
+    if (state.role !== "local") {
+      return;
+    }
+    var image = document.getElementById("pairingQr");
+    var status = document.getElementById("pairingStatus");
+    var help = document.getElementById("pairingHelp");
+    var url = document.getElementById("pairingUrl");
+    try {
+      var entry = await requestJson("/api/remote-entry");
+      if (!entry || !entry.url) {
+        throw new Error("Tailscale のスマホ連携 URL を取得できませんでした。");
+      }
+      image.onload = function () {
+        image.hidden = false;
+        status.textContent = "スマホで読んで接続";
+        help.hidden = false;
+      };
+      image.onerror = function () {
+        image.hidden = true;
+        help.hidden = true;
+        status.textContent = "スマホ連携の QR を表示できませんでした";
+      };
+      url.textContent = entry.url;
+      url.title = entry.url;
+      url.hidden = false;
+      image.src = "/api/remote-entry/qr";
+    } catch (error) {
+      image.hidden = true;
+      help.hidden = true;
+      url.hidden = true;
+      status.textContent = errorMessage(error);
+    }
   }
 
   function startRemoteConnection() {
