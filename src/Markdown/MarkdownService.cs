@@ -15,8 +15,18 @@ namespace Ferry
             bool combine,
             string outputRoot)
         {
+            return Convert(source, selectedNames, combine, outputRoot, null);
+        }
+
+        public static MarkdownConversionResult Convert(
+            FolderSnapshot source,
+            IList<string> selectedNames,
+            bool combine,
+            string outputRoot,
+            FileProgressHandler progress)
+        {
             var files = ResolveSelectedFiles(source, selectedNames);
-            return WriteCombined(source, files, outputRoot);
+            return WriteCombined(source, files, outputRoot, progress);
         }
 
         private static List<FolderFile> ResolveSelectedFiles(
@@ -73,7 +83,8 @@ namespace Ferry
         private static MarkdownConversionResult WriteCombined(
             FolderSnapshot source,
             List<FolderFile> files,
-            string outputRoot)
+            string outputRoot,
+            FileProgressHandler progress)
         {
             var outputDirectory = OutputLayout.CreateRunDirectory(outputRoot, source);
             var outputPath = FindAvailableFile(Path.Combine(
@@ -85,8 +96,13 @@ namespace Ferry
             builder.AppendLine(EscapeHeading(SourceTitle(source, files)));
 
             var converted = 0;
-            foreach (var file in files)
+            for (var index = 0; index < files.Count; index++)
             {
+                var file = files[index];
+                if (progress != null)
+                {
+                    progress(file, index + 1, files.Count, false);
+                }
                 builder.AppendLine();
                 builder.Append("## ");
                 builder.AppendLine(EscapeHeading(file.Name));
@@ -109,6 +125,10 @@ namespace Ferry
                     builder.Append("> 変換できませんでした: ");
                     builder.AppendLine(message.Replace("\r", " ").Replace("\n", " "));
                     failures.Add(new MarkdownFailure(file.Name, message));
+                }
+                if (progress != null)
+                {
+                    progress(file, index + 1, files.Count, true);
                 }
             }
 

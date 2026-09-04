@@ -71,7 +71,9 @@ namespace Ferry
             List<string> files,
             string format,
             int frameBytes,
-            int framesPerSecond)
+            int framesPerSecond,
+            string errorCorrection,
+            int displaySize)
         {
             if (action != "showQr" && action != "readCamera")
             {
@@ -88,7 +90,9 @@ namespace Ferry
                         files,
                         format,
                         frameBytes,
-                        framesPerSecond);
+                        framesPerSecond,
+                        errorCorrection,
+                        displaySize);
                 }
                 return _clients.Count;
             }
@@ -167,13 +171,17 @@ namespace Ferry
             List<string> files,
             string format,
             int frameBytes,
-            int framesPerSecond)
+            int framesPerSecond,
+            string errorCorrection,
+            int displaySize)
         {
             Action = action;
             Files = files;
             Format = format;
             FrameBytes = frameBytes;
             FramesPerSecond = framesPerSecond;
+            ErrorCorrection = errorCorrection;
+            DisplaySize = displaySize;
         }
 
         public string Action { get; private set; }
@@ -181,6 +189,8 @@ namespace Ferry
         public string Format { get; private set; }
         public int FrameBytes { get; private set; }
         public int FramesPerSecond { get; private set; }
+        public string ErrorCorrection { get; private set; }
+        public int DisplaySize { get; private set; }
     }
 
     internal sealed class RemoteControlInfo

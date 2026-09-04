@@ -37,6 +37,15 @@ namespace Ferry
             IList<string> selectedNames,
             string outputRoot)
         {
+            return Extract(source, selectedNames, outputRoot, null);
+        }
+
+        public static VbaExtractionResult Extract(
+            FolderSnapshot source,
+            IList<string> selectedNames,
+            string outputRoot,
+            FileProgressHandler progress)
+        {
             EnsureLegacyEncodings();
             if (source == null)
             {
@@ -68,8 +77,13 @@ namespace Ferry
             var lineCount = 0;
             var output = new StringBuilder();
 
-            foreach (var file in selected)
+            for (var index = 0; index < selected.Count; index++)
             {
+                var file = selected[index];
+                if (progress != null)
+                {
+                    progress(file, index + 1, selected.Count, false);
+                }
                 VbaProjectData project;
                 try
                 {
@@ -101,6 +115,10 @@ namespace Ferry
                     project.Modules.Count,
                     bookLines,
                     project.HasReadWarnings));
+                if (progress != null)
+                {
+                    progress(file, index + 1, selected.Count, true);
+                }
             }
 
             WriteTextAtomically(outputPath, NormalizeCrLf(output.ToString()));

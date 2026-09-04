@@ -50,6 +50,28 @@ namespace Ferry
             return snapshot;
         }
 
+        public FolderSnapshot SelectPath(string mode, string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("選ぶファイルまたはフォルダが指定されていません。", "path");
+            }
+
+            var fullPath = Path.GetFullPath(path);
+            if (Directory.Exists(fullPath))
+            {
+                return SelectFolder(mode, fullPath);
+            }
+            if (File.Exists(fullPath))
+            {
+                return SelectFiles(mode, new[] { fullPath });
+            }
+
+            throw new FileNotFoundException(
+                string.Format("Path not found: {0}", fullPath),
+                fullPath);
+        }
+
         public void ClearSelection(string mode)
         {
             lock (_gate)

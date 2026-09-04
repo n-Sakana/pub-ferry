@@ -7,22 +7,27 @@
 
 フォルダを、ネットワークを通さず画面とカメラの間で運ぶためのアプリです。光学転送、Office 文書の Markdown 化、Excel を起動しない VBA 抽出を一つの画面から使えます。
 
-画面は C# のローカル HTTP サーバが配信し、デスクトップとモバイルで同じ実装を使います。
+画面は C# のローカル HTTP サーバが配信します。Windows デスクトップでは WPF の窓に
+WebView2 で表示し、モバイルでは同じ画面を PWA として使います。
 
 ## 起動（配布の本線）
 
-Windows では `ferry.cmd` をダブルクリックします。Windows 標準の Windows PowerShell 5.1 が
-C# ソースをその場でコンパイルし、ローカル HTTP サーバを立てて既定ブラウザを開きます。
+Windows では `ferry.vbs` をダブルクリックします。黒いコンソールを出さずに Windows 標準の
+Windows PowerShell 5.1 を起動し、C# ソースをその場でコンパイルして WPF + WebView2 の窓を
+開きます。WebView2 Runtime が必要です。起動前に失敗した場合は
+`%LOCALAPPDATA%\Ferry\logs` のログを案内します。
+
+起動ログを見ながら使う場合は `ferry.cmd` を実行します。非 0 終了時にはコンソールが残ります。
 生成された DLL はユーザー別キャッシュへ保存され、C# ソースが変わったときだけ作り直します。
 
-Linux では PowerShell 7 から同じソースを起動できます。
+Linux 用デスクトップ画面は未実装です。PowerShell 7 では HTTP サーバだけを起動できます。
 
 ```powershell
-pwsh -NoProfile -File ./ferry.ps1
+pwsh -NoProfile -File ./ferry.ps1 --no-browser
 ```
 
-既定では `http://localhost:18422/` を開きます。ブラウザを自動で開かない場合は
-`--no-browser`、開始画面を指定する場合は `--mode optical|markdown|vba` を使います。
+Windows で WPF の窓を出さず HTTP サーバだけを起動する場合は `--no-browser`、開始画面を
+指定する場合は `--mode optical|markdown|vba` を使います。
 
 ## Tailnet からリモコンを開く
 

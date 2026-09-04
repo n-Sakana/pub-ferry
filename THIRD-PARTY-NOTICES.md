@@ -35,3 +35,12 @@ v0.3.0 の fork です。上流のワイヤーフォーマットには手を入�
 - Project: [zxing-cpp/zxing-cpp](https://github.com/zxing-cpp/zxing-cpp)
 - License: Apache License 2.0
 - ライセンス全文: [`lib/LICENSE-zxing-cpp.txt`](lib/LICENSE-zxing-cpp.txt)
+
+## Microsoft Edge WebView2
+
+WPF のデスクトップ画面に Microsoft.Web.WebView2 1.0.3856.49 の再配布 DLL 3本を同梱しています。
+
+- Project: [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/)
+- Copyright (C) Microsoft Corporation. All rights reserved.
+- ライセンス全文: [`lib/LICENSE-Microsoft.Web.WebView2.txt`](lib/LICENSE-Microsoft.Web.WebView2.txt)
+- 第三者表示: [`lib/NOTICE-Microsoft.Web.WebView2.txt`](lib/NOTICE-Microsoft.Web.WebView2.txt)

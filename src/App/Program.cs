@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Ferry
 {
@@ -36,6 +37,14 @@ namespace Ferry
             {
                 AppOptions.WriteHelp(Console.Out);
                 return 0;
+            }
+
+            if (options.Cli)
+            {
+                return ConsoleCommand.Run(
+                    appDirectory,
+                    options.InitialMode,
+                    options.InitialPath);
             }
 
             int runningProcessId;
@@ -150,11 +159,6 @@ namespace Ferry
                 }
                 Console.WriteLine("Press Ctrl+C to stop.");
 
-                if (!options.NoBrowser)
-                {
-                    TryOpenBrowser(appUri);
-                }
-
                 ConsoleCancelEventHandler handler = delegate (object sender, ConsoleCancelEventArgs eventArgs)
                 {
                     eventArgs.Cancel = true;
@@ -164,7 +168,34 @@ namespace Ferry
 
                 try
                 {
-                    server.RunAsync(shutdown.Token).GetAwaiter().GetResult();
+                    Task serverTask = server.RunAsync(shutdown.Token);
+                    serverTask.ContinueWith(
+                        delegate { shutdown.Cancel(); },
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+
+                    if (!options.NoBrowser)
+                    {
+                        if (PlatformInfo.IsWindows)
+                        {
+                            RunDesktopWindow(
+                                appDirectory,
+                                new Uri(string.Format(
+                                    "http://127.0.0.1:{0}/",
+                                    options.Port)),
+                                shutdown.Token,
+                                shutdown.Cancel);
+                            shutdown.Cancel();
+                        }
+                        else
+                        {
+                            Console.WriteLine(
+                                "The WPF desktop window is available on Windows only; the HTTP server will remain running.");
+                        }
+                    }
+
+                    serverTask.GetAwaiter().GetResult();
                 }
                 catch (OperationCanceledException)
                 {
@@ -177,6 +208,59 @@ namespace Ferry
             }
 
             return 0;
+        }
+
+        private static void RunDesktopWindow(
+            string appDirectory,
+            Uri appUri,
+            CancellationToken shutdownToken,
+            Action requestShutdown)
+        {
+            Type desktopApp = typeof(Program).Assembly.GetType(
+                "Ferry.DesktopApp",
+                false);
+            if (desktopApp == null)
+            {
+                throw new InvalidOperationException(
+                    "The Ferry WPF desktop host is unavailable. Start Ferry with Windows PowerShell 5.1, or use --no-browser for server-only operation.");
+            }
+
+            MethodInfo run = desktopApp.GetMethod(
+                "Run",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[]
+                {
+                    typeof(string),
+                    typeof(Uri),
+                    typeof(CancellationToken),
+                    typeof(Action)
+                },
+                null);
+            if (run == null)
+            {
+                throw new MissingMethodException(
+                    "Ferry.DesktopApp.Run could not be found.");
+            }
+
+            try
+            {
+                run.Invoke(
+                    null,
+                    new object[]
+                    {
+                        Path.GetFullPath(appDirectory),
+                        appUri,
+                        shutdownToken,
+                        requestShutdown
+                    });
+            }
+            catch (TargetInvocationException exception)
+            {
+                throw new InvalidOperationException(
+                    "The Ferry WPF desktop host failed.",
+                    exception.InnerException ?? exception);
+            }
         }
 
         private static bool TryFindRunningFerry(
@@ -510,23 +594,5 @@ namespace Ferry
                 && capabilities is Dictionary<string, object>;
         }
 
-        private static void TryOpenBrowser(Uri uri)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = uri.AbsoluteUri,
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception exception)
-            {
-                Console.Error.WriteLine(
-                    "The browser did not open automatically: {0}",
-                    exception.Message);
-                Console.Error.WriteLine("Open {0} manually.", uri);
-            }
-        }
     }
 }

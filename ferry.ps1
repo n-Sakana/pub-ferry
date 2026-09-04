@@ -6,6 +6,38 @@ param(
 
 Set-StrictMode -Version 2
 $ErrorActionPreference = 'Stop'
+$startupFailureExitCode = 3
+
+function Write-FerryLauncherLog {
+    param(
+        [string]$Level,
+        [string]$Message
+    )
+
+    try {
+        $localData = [Environment]::GetFolderPath(
+            [Environment+SpecialFolder]::LocalApplicationData)
+        if ([string]::IsNullOrWhiteSpace($localData)) {
+            return
+        }
+
+        $logDirectory = Join-Path $localData 'Ferry\logs'
+        if (-not (Test-Path -LiteralPath $logDirectory -PathType Container)) {
+            New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
+        }
+
+        $logPath = Join-Path $logDirectory (
+            'ferry_' + (Get-Date -Format 'yyyyMMdd') + '.log')
+        $line = '[' + (Get-Date -Format 'HH:mm:ss') + '] ' +
+            '[' + $Level + '] ' + $Message
+        [IO.File]::AppendAllText(
+            $logPath,
+            $line + [Environment]::NewLine,
+            (New-Object Text.UTF8Encoding($false)))
+    }
+    catch {
+    }
+}
 
 function Get-FerryRuntimeKey {
     if ($PSVersionTable.PSEdition -eq 'Desktop') {
@@ -81,90 +113,155 @@ function Get-FerryCombinedSource {
         [Environment]::NewLine + [Environment]::NewLine + $body
 }
 
-$sourceDirectory = Join-Path $PSScriptRoot 'src'
-$sourceFiles = if (Test-Path -LiteralPath $sourceDirectory -PathType Container) {
-    @(Get-ChildItem -LiteralPath $sourceDirectory -Filter '*.cs' -File -Recurse | Sort-Object FullName)
-}
-else {
-    @()
-}
-if ($sourceFiles.Count -eq 0) {
-    throw "No C# source files were found under src."
-}
+try {
+    $isWindowsPowerShell = $PSVersionTable.PSEdition -eq 'Desktop'
+    $desktopSourceNames = @(
+        'DesktopApp.cs'
+        'DesktopWindow.cs'
+        'WebViewSecurity.cs'
+    )
 
-$webDirectory = Join-Path $PSScriptRoot 'web'
-$webFiles = if (Test-Path -LiteralPath $webDirectory -PathType Container) {
-    @(Get-ChildItem -LiteralPath $webDirectory -File | Sort-Object Name)
-}
-else {
-    @()
-}
-$libraryDirectory = Join-Path $PSScriptRoot 'lib'
-$libraryFiles = if (Test-Path -LiteralPath $libraryDirectory -PathType Container) {
-    @(Get-ChildItem -LiteralPath $libraryDirectory -File | Sort-Object Name)
-}
-else {
-    @()
-}
-$zxingPath = Join-Path $libraryDirectory 'zxing.dll'
-if (-not (Test-Path -LiteralPath $zxingPath -PathType Leaf)) {
-    throw "Ferry could not find lib\zxing.dll."
-}
-$buildFiles = @($sourceFiles) + @($webFiles) + @($libraryFiles)
+    $sourceDirectory = Join-Path $PSScriptRoot 'src'
+    $sourceFiles = if (Test-Path -LiteralPath $sourceDirectory -PathType Container) {
+        @(Get-ChildItem -LiteralPath $sourceDirectory -Filter '*.cs' -File -Recurse |
+            Where-Object {
+                $isWindowsPowerShell -or
+                    $desktopSourceNames -notcontains $_.Name
+            } |
+            Sort-Object FullName)
+    }
+    else {
+        @()
+    }
+    if ($sourceFiles.Count -eq 0) {
+        throw "No C# source files were found under src."
+    }
 
-$runtimeKey = Get-FerryRuntimeKey
-$sourceHash = Get-FerrySourceHash -SourceFiles $buildFiles -RuntimeKey $runtimeKey
-$cacheRoot = Join-Path (Get-FerryCacheBase) 'Ferry\add-type-cache-v1'
-$cacheDirectory = Join-Path (Join-Path $cacheRoot $runtimeKey) $sourceHash
-$assemblyPath = Join-Path $cacheDirectory 'Ferry.Host.dll'
-$readyPath = Join-Path $cacheDirectory 'complete'
+    $webDirectory = Join-Path $PSScriptRoot 'web'
+    $webFiles = if (Test-Path -LiteralPath $webDirectory -PathType Container) {
+        @(Get-ChildItem -LiteralPath $webDirectory -File | Sort-Object Name)
+    }
+    else {
+        @()
+    }
+    $libraryDirectory = Join-Path $PSScriptRoot 'lib'
+    $libraryFiles = if (Test-Path -LiteralPath $libraryDirectory -PathType Container) {
+        @(Get-ChildItem -LiteralPath $libraryDirectory -File | Sort-Object Name)
+    }
+    else {
+        @()
+    }
+    $zxingPath = Join-Path $libraryDirectory 'zxing.dll'
+    if (-not (Test-Path -LiteralPath $zxingPath -PathType Leaf)) {
+        throw "Ferry could not find lib\zxing.dll."
+    }
 
-if (-not ((Test-Path -LiteralPath $assemblyPath -PathType Leaf) -and
-          (Test-Path -LiteralPath $readyPath -PathType Leaf))) {
-    [void](New-Item -ItemType Directory -Path $cacheDirectory -Force)
-    $temporaryAssembly = Join-Path $cacheDirectory ("Ferry.Host.{0}.tmp.dll" -f $PID)
+    $webViewAssemblies = @()
+    if ($isWindowsPowerShell) {
+        Add-Type -AssemblyName PresentationFramework
+        Add-Type -AssemblyName PresentationCore
+        Add-Type -AssemblyName WindowsBase
+        Add-Type -AssemblyName System.Xaml
+        Add-Type -AssemblyName System.Drawing
 
-    try {
-        Write-Host ("Compiling Ferry C# for {0}..." -f $runtimeKey)
-        $source = Get-FerryCombinedSource -SourceFiles $sourceFiles
-        if ($PSVersionTable.PSEdition -eq 'Desktop') {
-            Add-Type -AssemblyName System.IO.Compression
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
-            Add-Type -TypeDefinition $source `
-                -OutputAssembly $temporaryAssembly `
-                -OutputType Library `
-                -ReferencedAssemblies @(
+        $env:Path = $libraryDirectory + [IO.Path]::PathSeparator + $env:Path
+        $webViewAssemblies = @(
+            (Join-Path $libraryDirectory 'Microsoft.Web.WebView2.Core.dll')
+            (Join-Path $libraryDirectory 'Microsoft.Web.WebView2.Wpf.dll')
+        )
+        foreach ($webViewAssembly in $webViewAssemblies) {
+            if (-not (Test-Path -LiteralPath $webViewAssembly -PathType Leaf)) {
+                throw "Required WebView2 assembly is missing: $webViewAssembly"
+            }
+
+            # Read the bytes instead of using LoadFrom. A zip-downloaded copy
+            # can carry Mark of the Web, which makes LoadFrom fail with
+            # HRESULT 0x80131515 on Windows PowerShell 5.1.
+            [Reflection.Assembly]::Load(
+                [IO.File]::ReadAllBytes($webViewAssembly)) | Out-Null
+        }
+    }
+
+    $buildFiles = @($sourceFiles) + @($webFiles) + @($libraryFiles)
+    $runtimeKey = Get-FerryRuntimeKey
+    $sourceHash = Get-FerrySourceHash -SourceFiles $buildFiles -RuntimeKey $runtimeKey
+    $cacheRoot = Join-Path (Get-FerryCacheBase) 'Ferry\add-type-cache-v1'
+    $cacheDirectory = Join-Path (Join-Path $cacheRoot $runtimeKey) $sourceHash
+    $assemblyPath = Join-Path $cacheDirectory 'Ferry.Host.dll'
+    $readyPath = Join-Path $cacheDirectory 'complete'
+
+    if (-not ((Test-Path -LiteralPath $assemblyPath -PathType Leaf) -and
+              (Test-Path -LiteralPath $readyPath -PathType Leaf))) {
+        [void](New-Item -ItemType Directory -Path $cacheDirectory -Force)
+        $temporaryAssembly = Join-Path $cacheDirectory ("Ferry.Host.{0}.tmp.dll" -f $PID)
+
+        try {
+            Write-Host ("Compiling Ferry C# for {0}..." -f $runtimeKey)
+            $source = Get-FerryCombinedSource -SourceFiles $sourceFiles
+            if ($isWindowsPowerShell) {
+                Add-Type -AssemblyName System.IO.Compression
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                $references = @(
+                    [System.Windows.Window].Assembly.Location
+                    [System.Windows.UIElement].Assembly.Location
+                    [System.Windows.DependencyObject].Assembly.Location
+                    [System.Xaml.XamlReader].Assembly.Location
+                    'System.Drawing'
                     'System.IO.Compression'
                     'System.IO.Compression.FileSystem'
                     'System.Xml'
                     $zxingPath
-                )
-        }
-        else {
-            Add-Type -TypeDefinition $source `
-                -OutputAssembly $temporaryAssembly `
-                -OutputType Library `
-                -ReferencedAssemblies @($zxingPath)
-        }
+                ) + $webViewAssemblies
+                Add-Type -TypeDefinition $source `
+                    -OutputAssembly $temporaryAssembly `
+                    -OutputType Library `
+                    -ReferencedAssemblies $references
+            }
+            else {
+                $referenceDirectory = Join-Path $PSHOME 'ref'
+                if (-not (Test-Path -LiteralPath $referenceDirectory -PathType Container)) {
+                    throw "PowerShell reference assemblies were not found: $referenceDirectory"
+                }
+                $frameworkAssemblies = @(
+                    Get-ChildItem -LiteralPath $referenceDirectory -Filter '*.dll' -File |
+                        Select-Object -ExpandProperty FullName)
+                $coreSource = "#define NET9_0_OR_GREATER`n" + $source
+                Add-Type -TypeDefinition $coreSource `
+                    -OutputAssembly $temporaryAssembly `
+                    -OutputType Library `
+                    -ReferencedAssemblies @($frameworkAssemblies + $zxingPath)
+            }
 
-        if (Test-Path -LiteralPath $assemblyPath -PathType Leaf) {
-            Remove-Item -LiteralPath $assemblyPath -Force
+            if (Test-Path -LiteralPath $assemblyPath -PathType Leaf) {
+                Remove-Item -LiteralPath $assemblyPath -Force
+            }
+            Move-Item -LiteralPath $temporaryAssembly -Destination $assemblyPath
+            [IO.File]::WriteAllText($readyPath, $sourceHash, [Text.Encoding]::ASCII)
         }
-        Move-Item -LiteralPath $temporaryAssembly -Destination $assemblyPath
-        [IO.File]::WriteAllText($readyPath, $sourceHash, [Text.Encoding]::ASCII)
-    }
-    finally {
-        if (Test-Path -LiteralPath $temporaryAssembly -PathType Leaf) {
-            Remove-Item -LiteralPath $temporaryAssembly -Force
+        finally {
+            if (Test-Path -LiteralPath $temporaryAssembly -PathType Leaf) {
+                Remove-Item -LiteralPath $temporaryAssembly -Force
+            }
         }
     }
-}
-else {
-    Write-Host ("Using cached Ferry C# for {0}." -f $runtimeKey)
-}
+    else {
+        Write-Host ("Using cached Ferry C# for {0}." -f $runtimeKey)
+    }
 
-[void][Reflection.Assembly]::Load([IO.File]::ReadAllBytes($zxingPath))
-[void][Reflection.Assembly]::LoadFrom($assemblyPath)
-$env:FERRY_BUILD_ID = $sourceHash
-$exitCode = [Ferry.Program]::Run($PSScriptRoot, [string[]]$FerryArguments)
-exit $exitCode
+    [void][Reflection.Assembly]::Load([IO.File]::ReadAllBytes($zxingPath))
+    [void][Reflection.Assembly]::LoadFrom($assemblyPath)
+    $env:FERRY_BUILD_ID = $sourceHash
+    $exitCode = [Ferry.Program]::Run($PSScriptRoot, [string[]]$FerryArguments)
+    exit $exitCode
+}
+catch {
+    $location = ''
+    if ($null -ne $_.InvocationInfo) {
+        $location = ' (' + $_.InvocationInfo.ScriptName + ':' +
+            $_.InvocationInfo.ScriptLineNumber + ')'
+    }
+    $detail = 'launcher failed' + $location + ' ' + $_.Exception.ToString()
+    Write-FerryLauncherLog 'ERROR' $detail
+    [Console]::Error.WriteLine('Ferry: ' + $detail)
+    exit $startupFailureExitCode
+}

@@ -15,8 +15,11 @@ namespace Ferry
     {
         private const int MinimumFrameBytes = 64;
         private const int MaximumFrameBytes = 2953;
+        private const int FrameHeaderLength = 20;
         private const int MaximumFiles = 2000;
-        private const int MaximumBundleBytes = 16 * 1024 * 1024;
+        private const int MaximumBundleBytes = 64 * 1024 * 1024;
+        private static readonly int[] FrameBytesOptions =
+            { 500, 1000, 1465, 1850, 2331, 2953 };
 
         private readonly object _gate = new object();
         private OpticalSession _active;
@@ -25,15 +28,28 @@ namespace Ferry
             FolderSnapshot source,
             IList<string> selectedNames,
             int frameBytes,
-            int framesPerSecond)
+            int framesPerSecond,
+            string errorCorrection)
         {
             if (frameBytes < MinimumFrameBytes || frameBytes > MaximumFrameBytes)
             {
                 throw new ArgumentException("1 枚に載せる量が正しくありません。", "frameBytes");
             }
-            if (framesPerSecond != 8 && framesPerSecond != 12 && framesPerSecond != 16)
+            if (framesPerSecond != 10
+                && framesPerSecond != 15
+                && framesPerSecond != 20
+                && framesPerSecond != 24
+                && framesPerSecond != 30
+                && framesPerSecond != 60)
             {
                 throw new ArgumentException("1 秒あたりの枚数が正しくありません。", "framesPerSecond");
+            }
+            if (errorCorrection != "L"
+                && errorCorrection != "M"
+                && errorCorrection != "Q"
+                && errorCorrection != "H")
+            {
+                throw new ArgumentException("誤り訂正の設定が正しくありません。", "errorCorrection");
             }
 
             var payload = OpticalPayload.Build(
@@ -41,7 +57,12 @@ namespace Ferry
                 selectedNames,
                 MaximumFiles,
                 MaximumBundleBytes);
-            var session = new OpticalSession(payload, frameBytes, framesPerSecond);
+            frameBytes = RaiseFrameBytesIfNeeded(payload.Bytes.Length, frameBytes);
+            var session = new OpticalSession(
+                payload,
+                frameBytes,
+                framesPerSecond,
+                errorCorrection);
             session.ValidateFirstFrame();
 
             lock (_gate)
@@ -50,6 +71,36 @@ namespace Ferry
             }
 
             return session.Describe();
+        }
+
+        private static int RaiseFrameBytesIfNeeded(int payloadLength, int requestedFrameBytes)
+        {
+            if (FitsInOneStream(payloadLength, requestedFrameBytes))
+            {
+                return requestedFrameBytes;
+            }
+
+            foreach (var offered in FrameBytesOptions)
+            {
+                if (offered >= requestedFrameBytes && FitsInOneStream(payloadLength, offered))
+                {
+                    return offered;
+                }
+            }
+
+            throw new ArgumentException(
+                "選んだ内容は光学転送1本に収まりません。ファイルを分けてください。");
+        }
+
+        private static bool FitsInOneStream(int payloadLength, int frameBytes)
+        {
+            var blockLength = frameBytes - FrameHeaderLength;
+            if (blockLength <= 0)
+            {
+                return false;
+            }
+            var blockCount = (payloadLength + (long)blockLength - 1L) / blockLength;
+            return blockCount <= ushort.MaxValue;
         }
 
         public static byte[] RenderTextQr(string value)
@@ -144,6 +195,8 @@ namespace Ferry
         private readonly ushort _sessionId;
         private readonly int _frameBytes;
         private readonly int _framesPerSecond;
+        private readonly string _errorCorrectionName;
+        private readonly ErrorCorrectionLevel _errorCorrection;
         private readonly byte[] _payload;
         private readonly FountainEncoder _encoder;
         private readonly uint _payloadFnv;
@@ -152,12 +205,15 @@ namespace Ferry
         public OpticalSession(
             OpticalPayload payload,
             int frameBytes,
-            int framesPerSecond)
+            int framesPerSecond,
+            string errorCorrection)
         {
             _token = Guid.NewGuid().ToString("N");
             _sessionId = NewSessionId();
             _frameBytes = frameBytes;
             _framesPerSecond = framesPerSecond;
+            _errorCorrectionName = errorCorrection;
+            _errorCorrection = ParseErrorCorrection(errorCorrection);
             _payload = payload.Bytes;
             _encoder = new FountainEncoder(
                 _payload,
@@ -203,6 +259,7 @@ namespace Ferry
                 _payload.LongLength,
                 _frameBytes,
                 _framesPerSecond,
+                _errorCorrectionName,
                 _encoder.BlockCount,
                 _qrVersion,
                 (double)_encoder.BlockCount / _framesPerSecond);
@@ -232,7 +289,7 @@ namespace Ferry
             }
 
             var expected = Encoding.UTF8.GetBytes(value);
-            var qr = CreateQr(expected);
+            var qr = CreateQr(expected, ErrorCorrectionLevel.L, 0);
             ValidateQrRoundTrip(expected, qr);
             return RenderSvg(qr.Matrix, QuietZone);
         }
@@ -250,21 +307,32 @@ namespace Ferry
             WriteUInt32(frame, 12, checked((uint)_payload.Length));
             WriteUInt32(frame, 16, _payloadFnv);
             Buffer.BlockCopy(block, 0, frame, FrameHeaderLength, block.Length);
-            qr = CreateQr(frame);
+            qr = CreateQr(frame, _errorCorrection, _qrVersion);
+            if (_qrVersion > 0 && qr.Version.VersionNumber != _qrVersion)
+            {
+                throw new InvalidOperationException("QR コードの版を固定できませんでした。");
+            }
         }
 
-        private static QRCode CreateQr(byte[] frame)
+        private static QRCode CreateQr(
+            byte[] frame,
+            ErrorCorrectionLevel errorCorrection,
+            int version)
         {
             var hints = new Dictionary<EncodeHintType, object>();
             hints[EncodeHintType.CHARACTER_SET] = "ISO-8859-1";
             hints[EncodeHintType.DISABLE_ECI] = true;
             hints[EncodeHintType.QR_MASK_PATTERN] = 4;
+            if (version > 0)
+            {
+                hints[EncodeHintType.QR_VERSION] = version;
+            }
             var content = Encoding.GetEncoding(28591).GetString(frame);
             try
             {
                 return ZXing.QrCode.Internal.Encoder.encode(
                     content,
-                    ErrorCorrectionLevel.L,
+                    errorCorrection,
                     hints);
             }
             catch (WriterException exception)
@@ -273,6 +341,23 @@ namespace Ferry
                     "この設定では QR コードに収まりません。1 枚に載せる量を減らしてください。",
                     exception);
             }
+        }
+
+        private static ErrorCorrectionLevel ParseErrorCorrection(string value)
+        {
+            if (value == "M")
+            {
+                return ErrorCorrectionLevel.M;
+            }
+            if (value == "Q")
+            {
+                return ErrorCorrectionLevel.Q;
+            }
+            if (value == "H")
+            {
+                return ErrorCorrectionLevel.H;
+            }
+            return ErrorCorrectionLevel.L;
         }
 
         private static void ValidateQrRoundTrip(byte[] expected, QRCode qr)
@@ -719,8 +804,9 @@ namespace Ferry
                 if (total > maximumBytes)
                 {
                     throw new ArgumentException(string.Format(
-                        "選んだ内容は合計 {0:N1} MB です。現在は 16 MB まで送れます。",
-                        total / 1024.0 / 1024.0));
+                        "選んだ内容は合計 {0:N1} MB です。現在は {1:N0} MB まで送れます。",
+                        total / 1024.0 / 1024.0,
+                        maximumBytes / 1024.0 / 1024.0));
                 }
                 contents.Add(bytes);
                 manifestFiles.Add(new Dictionary<string, object>
@@ -1023,6 +1109,7 @@ namespace Ferry
             long transmittedBytes,
             int frameBytes,
             int framesPerSecond,
+            string errorCorrection,
             int sourceBlocks,
             int qrVersion,
             double minimumSeconds)
@@ -1034,6 +1121,7 @@ namespace Ferry
             TransmittedBytes = transmittedBytes;
             FrameBytes = frameBytes;
             FramesPerSecond = framesPerSecond;
+            ErrorCorrection = errorCorrection;
             SourceBlocks = sourceBlocks;
             QrVersion = qrVersion;
             MinimumSeconds = minimumSeconds;
@@ -1046,6 +1134,7 @@ namespace Ferry
         public long TransmittedBytes { get; private set; }
         public int FrameBytes { get; private set; }
         public int FramesPerSecond { get; private set; }
+        public string ErrorCorrection { get; private set; }
         public int SourceBlocks { get; private set; }
         public int QrVersion { get; private set; }
         public double MinimumSeconds { get; private set; }

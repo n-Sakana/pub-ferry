@@ -299,19 +299,29 @@ namespace Ferry
                 string format = null;
                 var frameBytes = 0;
                 var framesPerSecond = 0;
+                string errorCorrection = null;
+                var displaySize = 0;
                 if (action == "showQr")
                 {
                     files = ReadStringList(body, "files");
                     format = ReadString(body, "format");
                     frameBytes = ReadInt(body, "frameBytes");
                     framesPerSecond = ReadInt(body, "framesPerSecond");
+                    errorCorrection = body.ContainsKey("errorCorrection")
+                        ? ReadString(body, "errorCorrection")
+                        : "L";
+                    displaySize = body.ContainsKey("displaySize")
+                        ? ReadInt(body, "displaySize")
+                        : 900;
                 }
                 var count = _remotes.SendCommand(
                     action,
                     files,
                     format,
                     frameBytes,
-                    framesPerSecond);
+                    framesPerSecond,
+                    errorCorrection,
+                    displaySize);
                 await WriteJsonAsync(
                     context,
                     HttpStatusCode.OK,
@@ -350,6 +360,57 @@ namespace Ferry
                     new { Stopping = true, ProcessId = currentProcessId });
                 context.Response.OutputStream.Close();
                 _requestShutdown();
+                return;
+            }
+
+            if (request.HttpMethod == "POST" && path == "/api/activate")
+            {
+                RequireLocal(role, "右クリックから開く操作はこの PC で実行してください。");
+
+                int expectedProcessId;
+                var currentProcessId = GetCurrentProcessId();
+                if (!int.TryParse(
+                        request.Headers["X-Ferry-Process-Id"],
+                        out expectedProcessId)
+                    || expectedProcessId != currentProcessId)
+                {
+                    await WriteJsonAsync(
+                        context,
+                        HttpStatusCode.Conflict,
+                        new ErrorBody("The running Ferry process changed before it could be activated."));
+                    return;
+                }
+
+                var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
+                string mode = null;
+                string selectedPath = null;
+                if (body.ContainsKey("mode") || body.ContainsKey("path"))
+                {
+                    if (!body.ContainsKey("mode") || !body.ContainsKey("path"))
+                    {
+                        throw new ArgumentException(
+                            "右クリックの対象と機能を両方指定してください。");
+                    }
+                    mode = ReadMode(ReadString(body, "mode"));
+                    selectedPath = ReadString(body, "path");
+                }
+
+                var folder = mode == null
+                    ? null
+                    : _state.SelectPath(mode, selectedPath);
+                if (!DesktopActivation.Request(mode))
+                {
+                    await WriteJsonAsync(
+                        context,
+                        HttpStatusCode.ServiceUnavailable,
+                        new ErrorBody("Ferry のデスクトップ画面はまだ利用できません。"));
+                    return;
+                }
+
+                await WriteJsonAsync(
+                    context,
+                    HttpStatusCode.OK,
+                    new { Activated = true, Folder = folder });
                 return;
             }
 
@@ -571,6 +632,9 @@ namespace Ferry
                 var selectedNames = ReadStringList(body, "files");
                 var frameBytes = ReadInt(body, "frameBytes");
                 var framesPerSecond = ReadInt(body, "framesPerSecond");
+                var errorCorrection = body.ContainsKey("errorCorrection")
+                    ? ReadString(body, "errorCorrection")
+                    : "L";
                 var snapshot = _state.ReadFolder("optical");
                 var result = await Task.Run(delegate
                 {
@@ -579,7 +643,8 @@ namespace Ferry
                         selectedNames,
                         format,
                         frameBytes,
-                        framesPerSecond);
+                        framesPerSecond,
+                        errorCorrection);
                 });
                 await WriteJsonAsync(context, HttpStatusCode.OK, result);
                 return;
@@ -682,7 +747,8 @@ namespace Ferry
             List<string> selectedNames,
             string format,
             int frameBytes,
-            int framesPerSecond)
+            int framesPerSecond,
+            string errorCorrection)
         {
             if (string.Equals(format, "original", StringComparison.Ordinal))
             {
@@ -690,7 +756,8 @@ namespace Ferry
                     source,
                     selectedNames,
                     frameBytes,
-                    framesPerSecond);
+                    framesPerSecond,
+                    errorCorrection);
             }
             if (format != "markdown" && format != "vba")
             {
@@ -733,7 +800,8 @@ namespace Ferry
                     transferSource,
                     new[] { generated.Files[0].Name },
                     frameBytes,
-                    framesPerSecond);
+                    framesPerSecond,
+                    errorCorrection);
             }
             finally
             {

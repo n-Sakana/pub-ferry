@@ -55,14 +55,13 @@
         <div class="device-row">
           <span class="device-dot" aria-hidden="true"></span>
           <span id="deviceName">読み込み中</span>
-          <span class="device-tag" id="platformTag">この PC</span>
         </div>
         <div class="connected-remotes" id="connectedRemotes" aria-live="polite"></div>
         <section class="pairing-card" id="pairingCard" aria-labelledby="pairingTitle">
           <h3 class="visually-hidden" id="pairingTitle">スマホ連携</h3>
           <img class="pairing-qr" id="pairingQr" width="128" height="128" alt="スマホ用 Ferry PWA を開く QR コード" hidden>
-          <p class="pairing-copy" id="pairingStatus" aria-live="polite">スマホ連携を準備しています</p>
-          <p class="pairing-help" id="pairingHelp" hidden>スマホで読むと PWA が開き、この PC につながります。</p>
+          <p class="pairing-copy info-tip-target" id="pairingStatus" tabindex="0" aria-live="polite" aria-describedby="infoTooltip"
+            data-info-tip="スマホで読むと PWA が開き、この PC につながります。">スマホ連携を準備しています</p>
           <p class="pairing-url mono" id="pairingUrl" hidden></p>
         </section>
       </section>
@@ -90,9 +89,17 @@
       <section class="page" data-page-panel="optical" aria-labelledby="opticalTitle">
         <div class="page-heading">
           <h1 id="opticalTitle">光学転送</h1>
-          <div class="segmented" id="opticalDirection" aria-label="転送方向">
-            <button class="is-active" type="button" data-view="send" aria-pressed="true">送る</button>
-            <button type="button" data-view="receive" aria-pressed="false">受け取る</button>
+          <div class="page-heading-controls">
+            <div class="segmented" id="opticalDirection" aria-label="転送方向">
+              <button class="is-active" type="button" data-view="send" aria-pressed="true">送る</button>
+              <button type="button" data-view="receive" aria-pressed="false">受け取る</button>
+            </div>
+            <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="ダークにする">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                <path d="M12 3.75a8.25 8.25 0 0 1 0 16.5Z" fill="currentColor"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -114,7 +121,13 @@
               </div>
             </section>
 
-            <h2 class="section-caption">Contents</h2>
+            <div class="section-caption-row">
+              <h2 class="section-caption">Contents</h2>
+              <div class="selection-actions" aria-label="送るファイルの一括選択">
+                <button type="button" data-selection-mode="optical" data-selection-action="all" aria-controls="opticalFiles" disabled>すべて選択</button>
+                <button type="button" data-selection-mode="optical" data-selection-action="none" aria-controls="opticalFiles" disabled>すべて解除</button>
+              </div>
+            </div>
             <section class="file-table" aria-label="送るファイル">
               <div class="file-head"><span>名前</span><span>サイズ</span><span>更新日時</span></div>
               <div class="file-list" id="opticalFiles" data-mode="optical" aria-live="polite"></div>
@@ -124,8 +137,9 @@
           <div class="transfer-pane">
             <h2 class="section-caption">Transfer</h2>
             <section class="settings-card">
-              <div class="setting-row">
-                <span>送る形</span>
+              <div class="setting-row transfer-format-row">
+                <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
+                  data-info-tip="既定は「そのまま」です。元の内容を送るか、Markdown 化／VBA 抽出で1枚にまとめてから送るかを選びます。">送る形</span>
                 <div class="segmented compact transfer-format" id="transferFormat" aria-label="送る形">
                   <button class="is-active" type="button" data-transfer-format="original" aria-pressed="true">そのまま</button>
                   <button type="button" data-transfer-format="markdown" aria-pressed="false" disabled title="選んだ中に Markdown 化できるファイルがありません">Markdown 化</button>
@@ -133,39 +147,107 @@
                 </div>
               </div>
               <div class="setting-row">
-                <span>1 枚に載せる量</span>
-                <div class="segmented compact" id="frameAmount" aria-label="1 枚に載せる量">
-                  <button type="button" data-frame-bytes="900" aria-pressed="false">少</button>
-                  <button class="is-active" type="button" data-frame-bytes="1465" aria-pressed="true">中</button>
-                  <button type="button" data-frame-bytes="2200" aria-pressed="false">多</button>
-                </div>
+                <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
+                  data-info-tip="既定は 2,953 bytes です。増やすほど1枚で多く送れますが、QRが細かくなり、カメラで読みにくくなります。">1 枚に載せる量</span>
+                <select class="setting-select" id="frameAmount" aria-label="1 枚に載せる量">
+                  <option value="500">500 bytes</option>
+                  <option value="1000">1,000 bytes</option>
+                  <option value="1465">1,465 bytes</option>
+                  <option value="1850">1,850 bytes</option>
+                  <option value="2331">2,331 bytes</option>
+                  <option value="2953" selected>2,953 bytes</option>
+                </select>
               </div>
               <div class="setting-row">
-                <span>1 秒あたりの枚数</span>
-                <div class="segmented compact" id="frameRate" aria-label="1 秒あたりの枚数">
-                  <button type="button" data-frames-per-second="8" aria-pressed="false">8</button>
-                  <button class="is-active" type="button" data-frames-per-second="12" aria-pressed="true">12</button>
-                  <button type="button" data-frames-per-second="16" aria-pressed="false">16</button>
-                </div>
+                <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
+                  data-info-tip="既定は 60 fps です。上げるほど速く送れますが、カメラが追いつかないときは 24 fps などへ下げます。">1 秒あたりの枚数</span>
+                <select class="setting-select" id="frameRate" aria-label="1 秒あたりの枚数">
+                  <option value="10">10 fps</option>
+                  <option value="15">15 fps</option>
+                  <option value="20">20 fps</option>
+                  <option value="24">24 fps</option>
+                  <option value="30">30 fps</option>
+                  <option value="60" selected>60 fps</option>
+                </select>
               </div>
               <div class="setting-row">
-                <span>QR の大きさ</span>
-                <span class="secondary qr-size" id="qrSizeSetting">5.8 cm</span>
+                <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
+                  data-info-tip="既定は L です。上げるほど QR の欠けに強くなりますが、同じ内容でも QR が細かくなります。">誤り訂正</span>
+                <select class="setting-select" id="errorCorrection" aria-label="誤り訂正">
+                  <option value="L" selected>L</option>
+                  <option value="M">M</option>
+                  <option value="Q">Q</option>
+                  <option value="H">H</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
+                  data-info-tip="既定は 900 px です。大きくすると遠くから読みやすくなります。受信側では QR がカメラの視野いっぱいに映る距離へ調整します。">QR の大きさ</span>
+                <label class="range-setting" for="qrDisplaySize">
+                  <input id="qrDisplaySize" type="range" min="300" max="1200" step="50" value="900">
+                  <output id="qrSizeSetting" for="qrDisplaySize">900 px</output>
+                </label>
               </div>
             </section>
           </div>
         </div>
 
         <div data-optical-view="receive" hidden>
-          <section class="camera-frame" id="cameraFrame" aria-label="カメラ映像">
-            <video class="camera-video" id="cameraVideo" autoplay muted playsinline hidden></video>
-            <div class="camera-reticle"><svg aria-hidden="true"><use href="#icon-camera"></use></svg></div>
-            <div class="camera-label" id="cameraLabel" aria-live="polite">カメラは未接続</div>
+          <section class="camera-preview-zone" id="cameraPreview" aria-label="カメラ受信">
+            <div class="camera-no-signal" id="cameraNoSignal" role="status" hidden>
+              <span>反応がありませんか？</span>
+              <button class="text-button" id="cameraNoSignalHelp" type="button">ヒント</button>
+              <button class="text-button camera-no-signal-dismiss" id="cameraNoSignalDismiss" type="button">閉じる</button>
+            </div>
+            <div class="camera-frame" id="cameraFrame" aria-label="カメラ映像">
+              <video class="camera-video" id="cameraVideo" autoplay muted playsinline hidden></video>
+              <div class="camera-hud" aria-live="polite">
+                <div class="camera-label" id="cameraLabel">カメラは未接続</div>
+                <div class="meter-line"><strong id="receiveState">受信待ち</strong><span id="receiveEta">見積もり中</span></div>
+                <div class="meter-track" id="receiveProgress" role="progressbar" aria-label="光学転送の復元進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="receiveProgressBar"></span></div>
+                <div class="meter-detail">
+                  <span><span id="receiveDetail">フレームを待っています</span> · <span class="mono" id="receiveRate">0 KB/s</span></span>
+                  <span id="receiveFrames">0 枚</span>
+                </div>
+              </div>
+            </div>
           </section>
-          <section class="meter-card" aria-label="受信状況">
-            <div class="meter-line"><span id="receiveState">受信待ち</span><span class="mono" id="receiveRate">0 KB/s</span></div>
-            <div class="meter-track"><span id="receiveProgressBar"></span></div>
-            <div class="meter-detail"><span id="receiveDetail">フレームを待っています</span><span id="receiveFrames">0 枚</span></div>
+          <dialog class="camera-help-dialog" id="cameraHelpDialog" aria-labelledby="cameraHelpTitle">
+            <h2 id="cameraHelpTitle" tabindex="-1" autofocus>読み取れないとき</h2>
+            <ul>
+              <li>送信側の「1 枚に載せる量」を 1,465 bytes まで下げます。</li>
+              <li>まだ反応がなければ、送信側を 24 fps まで下げます。</li>
+              <li>QR をカメラの視野いっぱいに映し、端末を何かに立てかけます。手ぶれでレンズが迷うのが、読み取れない主な原因です。</li>
+              <li>QR を表示している画面の明るさを最大にします。</li>
+            </ul>
+            <button id="cameraHelpClose" type="button">閉じる</button>
+          </dialog>
+          <h2 class="section-caption">Receive settings</h2>
+          <section class="settings-card" id="cameraSettings">
+            <div class="setting-row">
+              <span>撮影幅</span>
+              <select class="setting-select" id="cameraWidth" aria-label="撮影幅">
+                <option value="960">960 px</option>
+                <option value="1280" selected>1280 px</option>
+                <option value="1920">1920 px</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <span>撮影 fps</span>
+              <select class="setting-select" id="cameraFps" aria-label="撮影 fps">
+                <option value="30">30 fps</option>
+                <option value="60" selected>60 fps</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <span>デコード worker</span>
+              <select class="setting-select" id="cameraWorkers" aria-label="デコード worker">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+              </select>
+            </div>
+            <div class="setting-row"><span>実際の設定</span><span class="secondary camera-actual" id="cameraActual">カメラ開始時に適用</span></div>
           </section>
           <h2 class="section-caption">Output</h2>
           <section class="settings-card">
@@ -189,9 +271,17 @@
       <section class="page" data-page-panel="markdown" hidden aria-labelledby="markdownTitle">
         <div class="page-heading">
           <h1 id="markdownTitle">Markdown 化</h1>
-          <div class="picker-actions">
-            <button class="small primary choose-files" type="button" data-picker-mode="markdown">ファイルを選ぶ</button>
-            <button class="small choose-folder" type="button" data-picker-mode="markdown">フォルダを選ぶ</button>
+          <div class="page-heading-controls">
+            <div class="picker-actions">
+              <button class="small primary choose-files" type="button" data-picker-mode="markdown">ファイルを選ぶ</button>
+              <button class="small choose-folder" type="button" data-picker-mode="markdown">フォルダを選ぶ</button>
+            </div>
+            <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="ダークにする">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                <path d="M12 3.75a8.25 8.25 0 0 1 0 16.5Z" fill="currentColor"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -204,7 +294,13 @@
           </div>
         </section>
 
-        <h2 class="section-caption">Contents</h2>
+        <div class="section-caption-row">
+          <h2 class="section-caption">Contents</h2>
+          <div class="selection-actions" aria-label="Markdown にするファイルの一括選択">
+            <button type="button" data-selection-mode="markdown" data-selection-action="all" aria-controls="markdownFiles" disabled>すべて選択</button>
+            <button type="button" data-selection-mode="markdown" data-selection-action="none" aria-controls="markdownFiles" disabled>すべて解除</button>
+          </div>
+        </div>
         <section class="file-table" aria-label="Markdown にするファイル">
           <div class="file-head"><span>名前</span><span>サイズ</span><span>更新日時</span></div>
           <div class="file-list tall" id="markdownFiles" data-mode="markdown" aria-live="polite"></div>
@@ -227,9 +323,17 @@
       <section class="page" data-page-panel="vba" hidden aria-labelledby="vbaTitle">
         <div class="page-heading">
           <h1 id="vbaTitle">VBA 抽出</h1>
-          <div class="picker-actions">
-            <button class="small primary choose-files" type="button" data-picker-mode="vba">ファイルを選ぶ</button>
-            <button class="small choose-folder" type="button" data-picker-mode="vba">フォルダを選ぶ</button>
+          <div class="page-heading-controls">
+            <div class="picker-actions">
+              <button class="small primary choose-files" type="button" data-picker-mode="vba">ファイルを選ぶ</button>
+              <button class="small choose-folder" type="button" data-picker-mode="vba">フォルダを選ぶ</button>
+            </div>
+            <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="ダークにする">
+              <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+                <path d="M12 3.75a8.25 8.25 0 0 1 0 16.5Z" fill="currentColor"></path>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -242,7 +346,13 @@
           </div>
         </section>
 
-        <h2 class="section-caption">Contents</h2>
+        <div class="section-caption-row">
+          <h2 class="section-caption">Contents</h2>
+          <div class="selection-actions" aria-label="VBA を取り出すブックの一括選択">
+            <button type="button" data-selection-mode="vba" data-selection-action="all" aria-controls="vbaFiles" disabled>すべて選択</button>
+            <button type="button" data-selection-mode="vba" data-selection-action="none" aria-controls="vbaFiles" disabled>すべて解除</button>
+          </div>
+        </div>
         <section class="file-table" aria-label="VBA を取り出すブック">
           <div class="file-head"><span>名前</span><span>サイズ</span><span>更新日時</span></div>
           <div class="file-list vba-list" id="vbaFiles" data-mode="vba" aria-live="polite"></div>
@@ -287,13 +397,14 @@
     <canvas class="qr-frame" id="qrFrame" width="1" height="1" role="img" aria-label="光学転送中の QR コード"></canvas>
     <div class="qr-controls" aria-label="QR の大きさ">
       <button id="smallerQr" type="button" aria-label="QR を小さくする">−</button>
-      <output id="qrSizeOutput">5.8 cm</output>
+      <output id="qrSizeOutput">900 px</output>
       <button id="largerQr" type="button" aria-label="QR を大きくする">＋</button>
     </div>
     <p class="qr-progress mono" id="qrProgress" aria-live="polite">QR を準備しています</p>
-    <p class="qr-hint">スマホの画角に入る大きさへ調整してください。</p>
+    <p class="qr-hint">受信側では、QR がカメラの視野いっぱいに映る距離へ近づけてください。</p>
   </section>
 
+  <div class="info-tooltip" id="infoTooltip" role="tooltip" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
   <noscript>Ferry を使うには JavaScript を有効にしてください。</noscript>

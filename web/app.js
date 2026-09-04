@@ -28,19 +28,21 @@
     opticalBusy: false,
     opticalSession: null,
     opticalRenderer: null,
-    qrSizeIndex: 2,
+    qrDisplaySize: 900,
     cameraStream: null,
     cameraWorkers: [],
     cameraGeneration: 0,
     cameraStarting: false,
     cameraRunning: false,
     cameraComplete: false,
+    cameraHasDecoded: false,
     cameraPostsInFlight: 0,
     cameraFrameId: 0,
     cameraQuietTimer: null,
     cameraReceiverId: null,
     markdownBusy: false,
     vbaBusy: false,
+    themePreference: null,
     vbaInfo: new Map(),
     selections: {
       optical: new Set(),
@@ -52,9 +54,16 @@
   var toast = document.getElementById("toast");
   var toastTimer = null;
   var cameraCanvas = document.createElement("canvas");
+  var darkModeQuery = typeof window.matchMedia === "function"
+    ? window.matchMedia("(prefers-color-scheme: dark)")
+    : null;
+  var infoTooltip = document.getElementById("infoTooltip");
+  var infoTooltipTarget = null;
 
+  loadThemePreference();
   wireNavigation();
   wireControls();
+  wireInfoTips();
   registerServiceWorker();
   setPickerDisabled(true);
   setListMessage("opticalFiles", "入力を読み込んでいます", "loading-state");
@@ -152,6 +161,18 @@
       });
     });
 
+    document.querySelectorAll("[data-selection-action]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        setAllSelections(
+          button.dataset.selectionMode,
+          button.dataset.selectionAction === "all");
+      });
+    });
+
+    document.querySelectorAll("[data-theme-toggle]").forEach(function (button) {
+      button.addEventListener("click", toggleTheme);
+    });
+
     document.getElementById("convertMarkdown").addEventListener("click", convertMarkdown);
     document.getElementById("openMarkdownOutput").addEventListener("click", function () {
       openOutput("markdown", this);
@@ -176,6 +197,27 @@
     document.getElementById("largerQr").addEventListener("click", function () {
       changeQrSize(1);
     });
+    document.getElementById("qrDisplaySize").addEventListener("input", function () {
+      setQrDisplaySize(Number(this.value));
+    });
+    ["cameraWidth", "cameraFps", "cameraWorkers"].forEach(function (id) {
+      document.getElementById(id).addEventListener("change", function () {
+        applyReceiveSettings();
+      });
+    });
+    document.getElementById("cameraNoSignalHelp").addEventListener("click", function () {
+      document.getElementById("cameraHelpDialog").showModal();
+    });
+    document.getElementById("cameraNoSignalDismiss").addEventListener("click", dismissCameraQuietHint);
+    document.getElementById("cameraHelpClose").addEventListener("click", function () {
+      document.getElementById("cameraHelpDialog").close();
+    });
+    document.getElementById("cameraHelpDialog").addEventListener("close", dismissCameraQuietHint);
+    document.getElementById("cameraHelpDialog").addEventListener("click", function (event) {
+      if (event.target === this) {
+        this.close();
+      }
+    });
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape" && !document.getElementById("qrOverlay").hidden) {
         stopOptical();
@@ -197,6 +239,145 @@
       }
     });
     applyQrSize();
+  }
+
+  function loadThemePreference() {
+    var preference = null;
+    try {
+      var stored = window.localStorage.getItem("ferry-theme");
+      if (stored === "light" || stored === "dark") {
+        preference = stored;
+      }
+    } catch (_) {
+      // The toggle still works for this session when storage is unavailable.
+    }
+    applyThemePreference(preference, false);
+    if (darkModeQuery) {
+      var updateFromSystem = function () {
+        if (!state.themePreference) {
+          updateThemeToggle();
+        }
+      };
+      if (typeof darkModeQuery.addEventListener === "function") {
+        darkModeQuery.addEventListener("change", updateFromSystem);
+      } else if (typeof darkModeQuery.addListener === "function") {
+        darkModeQuery.addListener(updateFromSystem);
+      }
+    }
+  }
+
+  function toggleTheme() {
+    applyThemePreference(isDarkThemeActive() ? "light" : "dark", true);
+  }
+
+  function applyThemePreference(preference, persist) {
+    state.themePreference = preference;
+    if (preference) {
+      document.documentElement.dataset.theme = preference;
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    if (persist) {
+      try {
+        window.localStorage.setItem("ferry-theme", preference);
+      } catch (_) {
+        // Keep the selected theme for this session when storage is unavailable.
+      }
+    }
+    updateThemeToggle();
+  }
+
+  function isDarkThemeActive() {
+    if (state.themePreference) {
+      return state.themePreference === "dark";
+    }
+    return Boolean(darkModeQuery && darkModeQuery.matches);
+  }
+
+  function updateThemeToggle() {
+    var dark = isDarkThemeActive();
+    document.querySelectorAll("[data-theme-toggle]").forEach(function (button) {
+      button.setAttribute("aria-pressed", dark ? "true" : "false");
+      button.setAttribute("aria-label", dark ? "ライトにする" : "ダークにする");
+    });
+  }
+
+  function wireInfoTips() {
+    document.querySelectorAll("[data-info-tip]").forEach(function (target) {
+      target.addEventListener("pointerenter", function () {
+        showInfoTip(target);
+      });
+      target.addEventListener("pointerleave", function () {
+        hideInfoTip(target, false);
+      });
+      target.addEventListener("focus", function () {
+        showInfoTip(target);
+      });
+      target.addEventListener("blur", function () {
+        hideInfoTip(target, false);
+      });
+      target.addEventListener("click", function () {
+        showInfoTip(target);
+      });
+      target.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          hideInfoTip(target, true);
+          target.blur();
+        }
+      });
+    });
+    document.addEventListener("pointerdown", function (event) {
+      if (infoTooltipTarget && !infoTooltipTarget.contains(event.target)) {
+        hideInfoTip(infoTooltipTarget, true);
+      }
+    });
+    document.addEventListener("scroll", function () {
+      if (infoTooltipTarget) {
+        hideInfoTip(infoTooltipTarget, true);
+      }
+    }, true);
+    window.addEventListener("resize", function () {
+      if (infoTooltipTarget) {
+        hideInfoTip(infoTooltipTarget, true);
+      }
+    });
+  }
+
+  function showInfoTip(target) {
+    var text = target.dataset.infoTip;
+    if (!text) {
+      return;
+    }
+    infoTooltipTarget = target;
+    infoTooltip.textContent = text;
+    infoTooltip.hidden = false;
+    infoTooltip.style.left = "0px";
+    infoTooltip.style.top = "0px";
+
+    var margin = 10;
+    var gap = 8;
+    var targetBounds = target.getBoundingClientRect();
+    var tipBounds = infoTooltip.getBoundingClientRect();
+    var left = targetBounds.left + targetBounds.width / 2 - tipBounds.width / 2;
+    left = Math.max(margin, Math.min(window.innerWidth - tipBounds.width - margin, left));
+    var top = targetBounds.top - tipBounds.height - gap;
+    if (top < margin) {
+      top = targetBounds.bottom + gap;
+    }
+    top = Math.max(margin, Math.min(window.innerHeight - tipBounds.height - margin, top));
+    infoTooltip.style.left = Math.round(left) + "px";
+    infoTooltip.style.top = Math.round(top) + "px";
+  }
+
+  function hideInfoTip(target, force) {
+    if (infoTooltipTarget !== target) {
+      return;
+    }
+    if (!force && (document.activeElement === target || target.matches(":hover"))) {
+      return;
+    }
+    infoTooltipTarget = null;
+    infoTooltip.hidden = true;
   }
 
   function navigate(page, moveFocus) {
@@ -266,7 +447,6 @@
 
   function applyStatus(status) {
     var device = status && status.device ? status.device : "この PC";
-    var platform = status && status.platform ? status.platform : "不明";
     var browserHost = window.location.hostname.toLowerCase();
     var fallbackRole = browserHost === "localhost" || browserHost === "127.0.0.1" ? "local" : "remote";
     var role = status && (status.role === "local" || status.role === "remote") ? status.role : fallbackRole;
@@ -275,8 +455,6 @@
     document.documentElement.classList.toggle("role-local", role === "local");
     document.getElementById("appShell").dataset.role = role;
     document.getElementById("deviceName").textContent = device;
-    document.getElementById("platformTag").textContent = "この PC";
-    document.getElementById("platformTag").title = platform;
     document.getElementById("remoteDeviceName").textContent = device;
     document.getElementById("readLocalCamera").textContent = role === "remote"
       ? "この端末のカメラで読む"
@@ -335,21 +513,35 @@
 
   function renderFiles(mode) {
     var folder = state.folders[mode];
-    var files = folder && Array.isArray(folder.files) ? folder.files : [];
+    var files = selectableFiles(mode);
     if (!folder) {
       var emptyMessage = mode === "vba" ? "ブックを選んでください" : "ファイルを選んでください";
       setListMessage(mode + "Files", emptyMessage, "empty-state");
+      updateSelectionActions(mode, files);
       updateSummary(mode);
       return;
     }
     if (mode === "optical") {
       renderSelectableFiles("opticalFiles", files, mode);
     } else if (mode === "markdown") {
-      renderSelectableFiles("markdownFiles", files.filter(function (file) { return file.markdownSupported; }), mode);
+      renderSelectableFiles("markdownFiles", files, mode);
     } else {
-      renderVbaFiles(files.filter(function (file) { return file.vbaWorkbook; }));
+      renderVbaFiles(files);
     }
+    updateSelectionActions(mode, files);
     updateSummary(mode);
+  }
+
+  function selectableFiles(mode) {
+    var folder = state.folders[mode];
+    var files = folder && Array.isArray(folder.files) ? folder.files : [];
+    if (mode === "markdown") {
+      return files.filter(function (file) { return file.markdownSupported; });
+    }
+    if (mode === "vba") {
+      return files.filter(function (file) { return file.vbaWorkbook; });
+    }
+    return files;
   }
 
   function renderSelectableFiles(containerId, files, mode) {
@@ -371,7 +563,8 @@
       row.className = "file-row";
       row.dataset.fileName = file.name;
       row.title = file.name;
-      row.setAttribute("aria-pressed", state.selections[mode].has(file.name) ? "true" : "false");
+      row.setAttribute("role", "checkbox");
+      row.setAttribute("aria-checked", state.selections[mode].has(file.name) ? "true" : "false");
       row.classList.toggle("is-selected", state.selections[mode].has(file.name));
       row.appendChild(fileNameCell(file));
       row.appendChild(textCell(formatBytes(file.size), "file-size"));
@@ -469,6 +662,11 @@
   function fileNameCell(file) {
     var cell = document.createElement("span");
     cell.className = "file-name";
+    var check = document.createElement("span");
+    check.className = "book-check";
+    check.textContent = "✓";
+    check.setAttribute("aria-hidden", "true");
+    cell.appendChild(check);
     cell.appendChild(fileBadge(file));
     cell.appendChild(textCell(file.name, "file-name-text"));
     return cell;
@@ -507,7 +705,8 @@
       state.selections[mode].add(fileName);
     }
     row.classList.toggle("is-selected", !selected);
-    row.setAttribute("aria-pressed", !selected ? "true" : "false");
+    row.setAttribute("aria-checked", !selected ? "true" : "false");
+    updateSelectionActions(mode, selectableFiles(mode));
     updateSummary(mode);
     if (mode === "markdown") {
       updateMarkdownOutput();
@@ -517,6 +716,41 @@
     } else if (mode === "optical") {
       updateOpticalAction();
     }
+  }
+
+  function setAllSelections(mode, select) {
+    if (mode !== "optical" && mode !== "markdown" && mode !== "vba") {
+      return;
+    }
+    selectableFiles(mode).forEach(function (file) {
+      if (select) {
+        state.selections[mode].add(file.name);
+      } else {
+        state.selections[mode].delete(file.name);
+      }
+    });
+    renderFiles(mode);
+    if (mode === "markdown") {
+      updateMarkdownOutput();
+      clearMarkdownResult();
+    } else if (mode === "vba") {
+      clearVbaResult();
+    }
+  }
+
+  function updateSelectionActions(mode, files) {
+    var allButton = document.querySelector(
+      "[data-selection-mode='" + mode + "'][data-selection-action='all']");
+    var noneButton = document.querySelector(
+      "[data-selection-mode='" + mode + "'][data-selection-action='none']");
+    if (!allButton || !noneButton) {
+      return;
+    }
+    var selectedCount = files.filter(function (file) {
+      return state.selections[mode].has(file.name);
+    }).length;
+    allButton.disabled = files.length === 0 || selectedCount === files.length;
+    noneButton.disabled = selectedCount === 0;
   }
 
   function updateSummary(mode) {
@@ -850,17 +1084,42 @@
     button.setAttribute("aria-busy", "true");
     button.textContent = "QR を準備しています…";
     try {
-      requestScreenWakeLock();
+      var requestedFrameBytes = fromRemoteCommand
+        ? Number(command.frameBytes)
+        : Number(document.getElementById("frameAmount").value || "2953");
+      var framesPerSecond = fromRemoteCommand
+        ? Number(command.framesPerSecond)
+        : Number(document.getElementById("frameRate").value || "60");
+      var errorCorrection = fromRemoteCommand
+        ? String(command.errorCorrection || "L")
+        : String(document.getElementById("errorCorrection").value || "L");
+      var displaySize = fromRemoteCommand
+        ? Number(command.displaySize || 900)
+        : Number(document.getElementById("qrDisplaySize").value || "900");
+      setQrDisplaySize(displaySize);
       var result = await requestJson("/api/optical/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           files: files,
           format: fromRemoteCommand ? command.format : activeData("transferFormat", "transferFormat", "original"),
-          frameBytes: fromRemoteCommand ? command.frameBytes : Number(activeData("frameAmount", "frameBytes", "1465")),
-          framesPerSecond: fromRemoteCommand ? command.framesPerSecond : Number(activeData("frameRate", "framesPerSecond", "12"))
+          frameBytes: requestedFrameBytes,
+          framesPerSecond: framesPerSecond,
+          errorCorrection: errorCorrection
         })
       });
+      document.getElementById("frameAmount").value = String(result.frameBytes);
+      document.getElementById("frameRate").value = String(result.framesPerSecond);
+      document.getElementById("errorCorrection").value = String(result.errorCorrection || errorCorrection);
+      if (!confirmLargeOptical(result)) {
+        await requestJson("/api/optical/stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: result.token })
+        });
+        return;
+      }
+      requestScreenWakeLock();
       state.opticalSession = result;
       state.opticalPreviousFocus = document.activeElement;
       document.getElementById("qrProgress").textContent = "最初の QR を描画しています";
@@ -875,6 +1134,19 @@
       button.textContent = "この画面に QR を出す";
       updateOpticalAction();
     }
+  }
+
+  function confirmLargeOptical(result) {
+    var largeTransferBytes = 16 * 1024 * 1024;
+    if (Number(result.originalBytes || 0) <= largeTransferBytes) {
+      return true;
+    }
+    return window.confirm(
+      "選んだ内容は " + formatBytes(result.originalBytes) + " あります。大きいため転送に時間がかかります。\n\n" +
+      "見込みは最短 " + formatSeconds(result.minimumSeconds) + "（" +
+      Number(result.frameBytes).toLocaleString("ja-JP") + " bytes / frame・" +
+      Number(result.framesPerSecond).toLocaleString("ja-JP") + " fps）です。\n" +
+      "実際には、取りこぼしたフレームを噴水符号で補うぶん長くなります。\n\n転送を始めますか？");
   }
 
   function startQrRenderer(session) {
@@ -997,33 +1269,24 @@
     }
     var canvas = document.getElementById("qrFrame");
     var dpr = window.devicePixelRatio || 1;
-    canvas.style.removeProperty("width");
-    canvas.style.removeProperty("height");
-
-    if (state.role === "remote") {
-      var overlay = document.getElementById("qrOverlay");
-      var overlayStyle = getComputedStyle(overlay);
-      var horizontalChrome = Number.parseFloat(overlayStyle.paddingLeft) +
-        Number.parseFloat(overlayStyle.paddingRight) +
-        Number.parseFloat(overlayStyle.borderLeftWidth) +
-        Number.parseFloat(overlayStyle.borderRightWidth);
-      var containerWidth = overlay.getBoundingClientRect().width || window.innerWidth;
-      var viewportBudget = 0.9 * Math.min(window.innerWidth, window.innerHeight);
-      var cssBudget = Math.max(1, Math.min(viewportBudget, containerWidth - horizontalChrome, 900));
-      var scale = Math.max(1, Math.floor(cssBudget * dpr / renderer.side));
-      canvas.width = renderer.side * scale;
-      canvas.height = renderer.side * scale;
-      canvas.style.width = (canvas.width / dpr) + "px";
-      canvas.style.height = (canvas.height / dpr) + "px";
-      return;
-    }
-
-    var bounds = canvas.getBoundingClientRect();
-    var physicalSide = Math.max(renderer.side, Math.round(bounds.width * dpr));
-    canvas.width = physicalSide;
-    canvas.height = physicalSide;
-    canvas.style.width = bounds.width + "px";
-    canvas.style.height = bounds.height + "px";
+    var overlay = document.getElementById("qrOverlay");
+    var overlayStyle = getComputedStyle(overlay);
+    var horizontalChrome = Number.parseFloat(overlayStyle.paddingLeft) +
+      Number.parseFloat(overlayStyle.paddingRight) +
+      Number.parseFloat(overlayStyle.borderLeftWidth) +
+      Number.parseFloat(overlayStyle.borderRightWidth);
+    var containerWidth = overlay.getBoundingClientRect().width || window.innerWidth;
+    var viewportBudget = 0.9 * Math.min(window.innerWidth, window.innerHeight);
+    var containerBudget = Math.max(1, containerWidth - horizontalChrome);
+    var cssBudget = Math.max(1, Math.min(
+      viewportBudget,
+      containerBudget,
+      state.qrDisplaySize));
+    var scale = Math.max(1, Math.floor((cssBudget * dpr) / renderer.side));
+    canvas.width = renderer.side * scale;
+    canvas.height = renderer.side * scale;
+    canvas.style.width = (canvas.width / dpr) + "px";
+    canvas.style.height = (canvas.height / dpr) + "px";
   }
 
   function isCurrentQrRenderer(renderer) {
@@ -1092,6 +1355,7 @@
     resetReceivePanel();
     state.cameraStarting = true;
     state.cameraComplete = false;
+    state.cameraHasDecoded = false;
     state.cameraPostsInFlight = 0;
     var generation = ++state.cameraGeneration;
     setCameraLabel("カメラを準備しています…");
@@ -1104,22 +1368,24 @@
       return;
     }
 
+    var captureWidth = Number(document.getElementById("cameraWidth").value || "1280");
+    var captureFps = Number(document.getElementById("cameraFps").value || "60");
     var stream = null;
     var constraints = {
       facingMode: "environment",
-      width: { ideal: 1280 },
-      height: { ideal: 960 }
+      width: { ideal: captureWidth },
+      height: { ideal: Math.round(captureWidth * 3 / 4) }
     };
     try {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: Object.assign({}, constraints, { frameRate: { exact: 30 } })
+          video: Object.assign({}, constraints, { frameRate: { exact: captureFps } })
         });
       } catch (_) {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: Object.assign({}, constraints, { frameRate: { ideal: 30 } })
+          video: Object.assign({}, constraints, { frameRate: { ideal: captureFps } })
         });
       }
 
@@ -1150,8 +1416,11 @@
       startCameraWorkers(generation);
       state.cameraStarting = false;
       state.cameraRunning = true;
+      document.getElementById("cameraPreview").classList.add("is-live");
       document.getElementById("cameraFrame").classList.add("is-live");
-      setCameraLabel("QR を画面中央に合わせてください");
+      reportCameraSettings();
+      applyCameraExtras();
+      setCameraLabel("ストリームを探しています…");
       setCapability("statusCamera", "利用可能", true);
       updateOpticalAction();
       armCameraQuietHint(generation);
@@ -1166,9 +1435,79 @@
     }
   }
 
+  function reportCameraSettings() {
+    var track = state.cameraStream && state.cameraStream.getVideoTracks()[0];
+    if (!track || typeof track.getSettings !== "function") {
+      return;
+    }
+    var settings = track.getSettings();
+    var askedFps = Number(document.getElementById("cameraFps").value || "60");
+    var gotFps = Math.round(Number(settings.frameRate || 0));
+    var fpsNote = gotFps && gotFps !== askedFps ? "（指定 " + askedFps + "）" : "";
+    document.getElementById("cameraActual").textContent =
+      String(settings.width || "—") + "×" + String(settings.height || "—") +
+      " @ " + (gotFps || "—") + " fps" + fpsNote + "・worker " +
+      state.cameraWorkers.length;
+  }
+
+  async function applyCameraExtras() {
+    var track = state.cameraStream && state.cameraStream.getVideoTracks()[0];
+    if (!track || typeof track.getCapabilities !== "function") {
+      return;
+    }
+    var capabilities;
+    try {
+      capabilities = track.getCapabilities();
+    } catch (_) {
+      return;
+    }
+
+    var focusModes = capabilities && capabilities.focusMode;
+    if (Array.isArray(focusModes) && focusModes.indexOf("continuous") >= 0) {
+      try {
+        await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+      } catch (_) {
+        // 上流と同じく、continuous focus を拒むカメラは元の設定のまま使う。
+      }
+    }
+
+    var maxFrameRate = capabilities && capabilities.frameRate && capabilities.frameRate.max;
+    if (maxFrameRate) {
+      Array.from(document.getElementById("cameraFps").options).forEach(function (option) {
+        option.disabled = Number(option.value) > Number(maxFrameRate);
+      });
+    }
+  }
+
+  async function applyReceiveSettings() {
+    if (!state.cameraRunning || state.cameraComplete) {
+      document.getElementById("cameraActual").textContent = "カメラ開始時に適用";
+      return;
+    }
+
+    startCameraWorkers(state.cameraGeneration);
+    var track = state.cameraStream && state.cameraStream.getVideoTracks()[0];
+    if (!track) {
+      return;
+    }
+    var width = Number(document.getElementById("cameraWidth").value || "1280");
+    try {
+      await track.applyConstraints({
+        width: { ideal: width },
+        height: { ideal: Math.round(width * 3 / 4) },
+        frameRate: { ideal: Number(document.getElementById("cameraFps").value || "60") }
+      });
+    } catch (_) {
+      document.getElementById("cameraActual").textContent =
+        "このカメラは実行中の変更を拒みました。再起動すると適用されます";
+      return;
+    }
+    reportCameraSettings();
+  }
+
   function startCameraWorkers(generation) {
     stopCameraWorkers();
-    var workerCount = Math.min(4, Math.max(2, navigator.hardwareConcurrency || 2));
+    var workerCount = Number(document.getElementById("cameraWorkers").value || "2");
     for (var index = 0; index < workerCount; index++) {
       (function () {
         var worker = new Worker("/qr-worker.js?v=__FERRY_BUILD_ID__");
@@ -1301,12 +1640,28 @@
       return;
     }
 
-    armCameraQuietHint(state.cameraGeneration);
+    state.cameraHasDecoded = true;
+    window.clearTimeout(state.cameraQuietTimer);
+    state.cameraQuietTimer = null;
+    document.getElementById("cameraNoSignal").hidden = true;
+    var helpDialog = document.getElementById("cameraHelpDialog");
+    if (helpDialog.open) {
+      helpDialog.close();
+    }
     var percent = Math.max(0, Math.min(100, Math.round(Number(result.progress || 0) * 100)));
     document.getElementById("receiveProgressBar").style.width = percent + "%";
+    document.getElementById("receiveProgress").setAttribute("aria-valuenow", String(percent));
     document.getElementById("receiveState").textContent = result.complete ? "受信完了" : "受信中 " + percent + "%";
     document.getElementById("receiveRate").textContent = formatRate(result.kilobytesPerSecond);
     document.getElementById("receiveFrames").textContent = Number(result.framesCollected || 0).toLocaleString("ja-JP") + " 枚";
+    var elapsed = Number(result.elapsedSeconds || 0);
+    var progress = Number(result.progress || 0);
+    var remaining = progress > 0 && progress < 1 ? elapsed * (1 - progress) / progress : 0;
+    document.getElementById("receiveEta").textContent = result.complete
+      ? formatSeconds(elapsed) + " 合計"
+      : remaining > 0
+        ? "残り約 " + formatSeconds(remaining)
+        : "見積もり中";
     document.getElementById("receiveDetail").textContent =
       Number(result.solvedBlocks || 0).toLocaleString("ja-JP") + " / " +
       Number(result.sourceBlocks || 0).toLocaleString("ja-JP") + " ブロック";
@@ -1320,6 +1675,7 @@
     state.cameraComplete = true;
     document.getElementById("cameraFrame").classList.add("is-complete");
     document.getElementById("receiveProgressBar").style.width = "100%";
+    document.getElementById("receiveProgress").setAttribute("aria-valuenow", "100");
     document.getElementById("receiveDetail").textContent =
       Number(result.fileCount || 0).toLocaleString("ja-JP") + " ファイルを検算して保存しました";
     document.getElementById("receiveItem").textContent =
@@ -1339,6 +1695,7 @@
     state.cameraGeneration++;
     window.clearTimeout(state.cameraQuietTimer);
     state.cameraQuietTimer = null;
+    document.getElementById("cameraNoSignal").hidden = true;
     stopCameraWorkers();
     if (state.cameraStream) {
       state.cameraStream.getTracks().forEach(function (track) { track.stop(); });
@@ -1346,7 +1703,12 @@
     state.cameraStream = null;
     state.cameraStarting = false;
     state.cameraRunning = false;
+    var helpDialog = document.getElementById("cameraHelpDialog");
+    if (helpDialog.open) {
+      helpDialog.close();
+    }
     document.getElementById("cameraFrame").classList.remove("is-live");
+    document.getElementById("cameraPreview").classList.remove("is-live");
     var video = document.getElementById("cameraVideo");
     video.pause();
     video.srcObject = null;
@@ -1374,30 +1736,37 @@
 
   function resetReceivePanel() {
     state.cameraComplete = false;
+    state.cameraHasDecoded = false;
     document.getElementById("cameraFrame").classList.remove("is-complete");
     document.getElementById("receiveState").textContent = "受信待ち";
     document.getElementById("receiveRate").textContent = "0 KB/s";
     document.getElementById("receiveProgressBar").style.width = "0%";
+    document.getElementById("receiveProgress").setAttribute("aria-valuenow", "0");
     document.getElementById("receiveDetail").textContent = "フレームを待っています";
     document.getElementById("receiveFrames").textContent = "0 枚";
+    document.getElementById("receiveEta").textContent = "見積もり中";
+    document.getElementById("cameraNoSignal").hidden = true;
     document.getElementById("receiveItem").textContent = "未定";
     var output = document.getElementById("receiveOutputPath");
     output.textContent = ".\\output\\受信名_YYYYMMDD-HHmm";
     output.title = "";
   }
 
-  function armCameraQuietHint(generation) {
+  function armCameraQuietHint(generation, delay) {
     window.clearTimeout(state.cameraQuietTimer);
     state.cameraQuietTimer = window.setTimeout(function () {
-      if (generation !== state.cameraGeneration || !state.cameraRunning || state.cameraComplete) {
+      if (generation !== state.cameraGeneration || !state.cameraRunning || state.cameraComplete || state.cameraHasDecoded) {
         return;
       }
-      setCameraLabel("QR が見つかりません。画面中央へ合わせてください");
-      if (document.getElementById("receiveFrames").textContent === "0 枚") {
-        document.getElementById("receiveDetail").textContent =
-          "読めないときは送信側の「1 枚に載せる量」を下げてください";
-      }
-    }, 8000);
+      document.getElementById("cameraNoSignal").hidden = false;
+    }, delay || 8000);
+  }
+
+  function dismissCameraQuietHint() {
+    document.getElementById("cameraNoSignal").hidden = true;
+    if (state.cameraRunning && !state.cameraHasDecoded) {
+      armCameraQuietHint(state.cameraGeneration, 15000);
+    }
   }
 
   function setCameraLabel(message) {
@@ -1521,8 +1890,10 @@
       if (action === "showQr") {
         body.files = Array.from(state.selections.optical);
         body.format = activeData("transferFormat", "transferFormat", "original");
-        body.frameBytes = Number(activeData("frameAmount", "frameBytes", "1465"));
-        body.framesPerSecond = Number(activeData("frameRate", "framesPerSecond", "12"));
+        body.frameBytes = Number(document.getElementById("frameAmount").value || "2953");
+        body.framesPerSecond = Number(document.getElementById("frameRate").value || "60");
+        body.errorCorrection = String(document.getElementById("errorCorrection").value || "L");
+        body.displaySize = Number(document.getElementById("qrDisplaySize").value || "900");
       }
       await requestJson("/api/remotes/command", {
         method: "POST",
@@ -1542,19 +1913,25 @@
   }
 
   function changeQrSize(direction) {
-    var sizes = [3.5, 4.6, 5.8, 7.3, 9.6];
-    state.qrSizeIndex = Math.max(0, Math.min(sizes.length - 1, state.qrSizeIndex + direction));
-    applyQrSize();
+    setQrDisplaySize(state.qrDisplaySize + direction * 50);
   }
 
   function applyQrSize() {
-    var sizes = [3.5, 4.6, 5.8, 7.3, 9.6];
-    var value = sizes[state.qrSizeIndex];
-    document.documentElement.style.setProperty("--qr-size", value + "cm");
-    document.getElementById("qrSizeSetting").textContent = value.toFixed(1) + " cm";
-    document.getElementById("qrSizeOutput").textContent = value.toFixed(1) + " cm";
-    document.getElementById("smallerQr").disabled = state.qrSizeIndex === 0;
-    document.getElementById("largerQr").disabled = state.qrSizeIndex === sizes.length - 1;
+    setQrDisplaySize(Number(document.getElementById("qrDisplaySize").value || "900"));
+  }
+
+  function setQrDisplaySize(value) {
+    var control = document.getElementById("qrDisplaySize");
+    var minimum = Number(control.min || "300");
+    var maximum = Number(control.max || "1200");
+    value = Math.round(Number(value) / 50) * 50;
+    value = Math.max(minimum, Math.min(maximum, value || 900));
+    state.qrDisplaySize = value;
+    control.value = String(value);
+    document.getElementById("qrSizeSetting").textContent = value.toLocaleString("ja-JP") + " px";
+    document.getElementById("qrSizeOutput").textContent = value.toLocaleString("ja-JP") + " px";
+    document.getElementById("smallerQr").disabled = value === minimum;
+    document.getElementById("largerQr").disabled = value === maximum;
     if (state.opticalRenderer) {
       sizeQrCanvas(state.opticalRenderer);
     }
@@ -1562,7 +1939,16 @@
 
   function formatSeconds(value) {
     var seconds = Math.max(0, Number(value) || 0);
-    return seconds < 10 ? seconds.toFixed(1) + " 秒" : Math.ceil(seconds).toLocaleString("ja-JP") + " 秒";
+    if (seconds < 10) {
+      return seconds.toFixed(1) + " 秒";
+    }
+    if (seconds < 60) {
+      return Math.ceil(seconds).toLocaleString("ja-JP") + " 秒";
+    }
+    var rounded = Math.ceil(seconds);
+    var minutes = Math.floor(rounded / 60);
+    var remainder = rounded % 60;
+    return minutes.toLocaleString("ja-JP") + " 分" + (remainder ? " " + remainder + " 秒" : "");
   }
 
   function updateMarkdownOutput() {
@@ -1637,7 +2023,6 @@
     }
     var image = document.getElementById("pairingQr");
     var status = document.getElementById("pairingStatus");
-    var help = document.getElementById("pairingHelp");
     var url = document.getElementById("pairingUrl");
     try {
       var entry = await requestJson("/api/remote-entry");
@@ -1647,11 +2032,9 @@
       image.onload = function () {
         image.hidden = false;
         status.textContent = "スマホで読んで接続";
-        help.hidden = false;
       };
       image.onerror = function () {
         image.hidden = true;
-        help.hidden = true;
         status.textContent = "スマホ連携の QR を表示できませんでした";
       };
       url.textContent = entry.url;
@@ -1660,7 +2043,6 @@
       image.src = "/api/remote-entry/qr";
     } catch (error) {
       image.hidden = true;
-      help.hidden = true;
       url.hidden = true;
       status.textContent = errorMessage(error);
     }

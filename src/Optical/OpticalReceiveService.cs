@@ -282,7 +282,11 @@ namespace Ferry
     {
         private const int HeaderLength = 20;
         private const int MaximumBlockLength = 2933;
-        private const int MaximumPayloadLength = 64 * 1024 * 1024;
+        // Ferry wraps as much as 64 MiB of file content in a DCB1 manifest and
+        // then in the upstream DCF2 envelope. Keep the content limit at 64 MiB,
+        // while allowing the protected stream to carry that bounded metadata.
+        private const int MaximumPayloadLength =
+            (64 * 1024 * 1024) + (1024 * 1024) + (64 * 1024);
 
         private OpticalFrame()
         {
@@ -565,6 +569,8 @@ namespace Ferry
         private const int BundleHeaderLength = 8;
         private const int MaximumPayloadBytes = 64 * 1024 * 1024;
         private const int MaximumManifestBytes = 1024 * 1024;
+        private const int MaximumContainerBytes =
+            MaximumPayloadBytes + MaximumManifestBytes + (64 * 1024);
         private const int MaximumFiles = 2000;
         private const string BundleMediaType = "application/vnd.decimen.bundle+dcb1";
         private static readonly UTF8Encoding Utf8 = new UTF8Encoding(false, true);
@@ -628,9 +634,9 @@ namespace Ferry
             var transmittedLengthRaw = ReadUInt32(container, 13);
             if (compression > 1
                 || originalLengthRaw == 0
-                || originalLengthRaw > MaximumPayloadBytes
+                || originalLengthRaw > MaximumContainerBytes
                 || transmittedLengthRaw == 0
-                || transmittedLengthRaw > MaximumPayloadBytes)
+                || transmittedLengthRaw > MaximumContainerBytes)
             {
                 throw new InvalidDataException("受信したファイル長が不正です。");
             }
