@@ -14,6 +14,8 @@ namespace Ferry
     {
         private const long MaximumRequestBytes = 64 * 1024;
 
+        private readonly SemaphoreSlim _requestSlots = new SemaphoreSlim(16, 16);
+        private readonly SemaphoreSlim _operationGate = new SemaphoreSlim(1, 1);
         private readonly HttpListener _listener = new HttpListener();
         private readonly AppState _state;
         private readonly int _port;
@@ -62,6 +64,7 @@ namespace Ferry
                 }
             }))
             {
+                var pending = new List<Task>();
                 while (!cancellationToken.IsCancellationRequested && _listener.IsListening)
                 {
                     HttpListenerContext context;
@@ -88,8 +91,25 @@ namespace Ferry
                         throw;
                     }
 
-                    await HandleSafelyAsync(context);
+                    try
+                    {
+                        await _requestSlots.WaitAsync(cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        context.Response.Abort();
+                        break;
+                    }
+                    var accepted = context;
+                    pending.RemoveAll(delegate(Task task) { return task.IsCompleted; });
+                    pending.Add(Task.Run(async delegate
+                    {
+                        try { await HandleSafelyAsync(accepted); }
+                        catch (Exception exception) { Console.Error.WriteLine(exception); }
+                        finally { _requestSlots.Release(); }
+                    }));
                 }
+                await Task.WhenAny(Task.WhenAll(pending), Task.Delay(2000));
             }
         }
 
@@ -111,7 +131,13 @@ namespace Ferry
 
             try
             {
-                await HandleAsync(context);
+                var path = context.Request.Url == null ? "/" : context.Request.Url.AbsolutePath;
+                var exclusive = path == "/api/pick-folder" || path == "/api/pick-files"
+                    || path == "/api/markdown" || path == "/api/vba/extract"
+                    || path == "/api/vba/inspect" || path == "/api/optical/start";
+                if (exclusive) await _operationGate.WaitAsync();
+                try { await HandleAsync(context); }
+                finally { if (exclusive) _operationGate.Release(); }
             }
             catch (DirectoryNotFoundException exception)
             {
@@ -658,6 +684,32 @@ namespace Ferry
                 return;
             }
 
+            if (request.HttpMethod == "POST" && path == "/api/optical/receive/frames")
+            {
+                var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
+                var receiverId = ReadString(body, "receiverId");
+                var encodedFrames = ReadStringList(body, "frames");
+                if (encodedFrames.Count < 1 || encodedFrames.Count > 8)
+                    throw new ArgumentException("一度に受け取れる QR は 1〜8 枚です。");
+                var frames = new List<byte[]>();
+                foreach (var encoded in encodedFrames)
+                {
+                    try { frames.Add(Convert.FromBase64String(encoded)); }
+                    catch (FormatException exception)
+                    { throw new ArgumentException("読み取った QR の内容が壊れています。", exception); }
+                }
+                var openWhenDone = ReadOptionalBool(body, "openWhenDone", true);
+                var result = OpticalReceiveResult.NotRecognized();
+                foreach (var frame in frames)
+                {
+                    var current = _opticalReceiver.AddFrame(receiverId, frame, openWhenDone);
+                    if (current.Recognized) result = current;
+                    if (result.Complete) break;
+                }
+                await WriteJsonAsync(context, HttpStatusCode.OK, result);
+                return;
+            }
+
             if (request.HttpMethod == "POST" && path == "/api/optical/receive/frame")
             {
                 var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
@@ -685,6 +737,26 @@ namespace Ferry
                 var body = JsonCodec.ParseObject(await ReadBodyAsync(request));
                 _opticalReceiver.Stop(ReadString(body, "receiverId"));
                 await WriteJsonAsync(context, HttpStatusCode.OK, new { Stopped = true });
+                return;
+            }
+
+            if (request.HttpMethod == "GET" && path == "/api/optical/frames")
+            {
+                uint sequence;
+                int count;
+                if (!uint.TryParse(request.QueryString["seq"],
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out sequence)
+                    || !int.TryParse(request.QueryString["count"], out count))
+                    throw new ArgumentException("QR の先読み指定が正しくありません。");
+                byte[] packed;
+                if (!_optical.TryRenderPackedFrames(request.QueryString["token"], sequence, count, out packed))
+                {
+                    await WriteJsonAsync(context, HttpStatusCode.NotFound,
+                        new ErrorBody("光学転送の表示は終了しました。"));
+                    return;
+                }
+                await WriteBytesAsync(context, "application/octet-stream", packed);
                 return;
             }
 

@@ -13,6 +13,8 @@ namespace Ferry
         private readonly object _gate = new object();
         private readonly Dictionary<string, OpticalReceiveState> _receivers =
             new Dictionary<string, OpticalReceiveState>(StringComparer.Ordinal);
+        private readonly Dictionary<string, DateTime> _stopped =
+            new Dictionary<string, DateTime>(StringComparer.Ordinal);
         private readonly string _outputRoot;
 
         public OpticalReceiveService(string outputRoot)
@@ -26,12 +28,28 @@ namespace Ferry
             lock (_gate)
             {
                 _receivers.Remove(receiverId);
+                _stopped.Remove(receiverId);
             }
         }
 
         public void Stop(string receiverId)
         {
-            Reset(receiverId);
+            receiverId = RequireReceiverId(receiverId);
+            lock (_gate)
+            {
+                _receivers.Remove(receiverId);
+                if (_stopped.Count >= 256)
+                {
+                    string oldest = null;
+                    var oldestTime = DateTime.MaxValue;
+                    foreach (var entry in _stopped)
+                    {
+                        if (entry.Value < oldestTime) { oldest = entry.Key; oldestTime = entry.Value; }
+                    }
+                    if (oldest != null) _stopped.Remove(oldest);
+                }
+                _stopped[receiverId] = DateTime.UtcNow;
+            }
         }
 
         public OpticalReceiveResult AddFrame(
@@ -48,13 +66,26 @@ namespace Ferry
 
             lock (_gate)
             {
+                if (_stopped.ContainsKey(receiverId)) return OpticalReceiveResult.NotRecognized();
                 OpticalReceiveState state;
-                if (!_receivers.TryGetValue(receiverId, out state)
-                    || !state.Matches(frame))
+                var expired = new List<string>();
+                foreach (var entry in _receivers)
                 {
+                    if (DateTime.UtcNow - entry.Value.LastSeenUtc > TimeSpan.FromMinutes(30))
+                        expired.Add(entry.Key);
+                }
+                foreach (var id in expired) _receivers.Remove(id);
+                if (!_receivers.TryGetValue(receiverId, out state))
+                {
+                    if (_receivers.Count >= 16)
+                        throw new ArgumentException("受信画面が多すぎます。不要なカメラを停止してください。");
                     state = new OpticalReceiveState(frame);
                     _receivers[receiverId] = state;
                 }
+
+                state.LastSeenUtc = DateTime.UtcNow;
+                // A delayed worker or a second QR in view must not erase collected blocks.
+                if (!state.Matches(frame)) return OpticalReceiveResult.NotRecognized();
 
                 if (state.CompletedResult != null)
                 {
@@ -91,6 +122,7 @@ namespace Ferry
                     }
 
                     state.CompletedResult = state.DescribeComplete(saved, openError);
+                    state.ReleaseDecoder();
                     return state.CompletedResult;
                 }
                 catch
@@ -139,6 +171,7 @@ namespace Ferry
             _totalLength = firstFrame.TotalLength;
             _payloadFnv = firstFrame.PayloadFnv;
             _startedUtc = DateTime.UtcNow;
+            LastSeenUtc = _startedUtc;
             Decoder = new FountainDecoder(
                 _blockCount,
                 _blockLength,
@@ -146,6 +179,8 @@ namespace Ferry
                 _totalLength);
         }
 
+        public DateTime LastSeenUtc { get; set; }
+        public void ReleaseDecoder() { Decoder = null; }
         public FountainDecoder Decoder { get; private set; }
         public OpticalReceiveResult CompletedResult { get; set; }
 

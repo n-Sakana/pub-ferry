@@ -1,0 +1,130 @@
+TAP version 13
+# Subtest: valid binary frame and byte-offset view
+ok 1 - valid binary frame and byte-offset view
+  ---
+  duration_ms: 1.293459
+  type: 'test'
+  ...
+# Subtest: all truncated header lengths rejected
+ok 2 - all truncated header lengths rejected
+  ---
+  duration_ms: 1.033257
+  type: 'test'
+  ...
+# Subtest: foreign QR, invalid input type and malformed stream rejected
+ok 3 - foreign QR, invalid input type and malformed stream rejected
+  ---
+  duration_ms: 0.191779
+  type: 'test'
+  ...
+# Subtest: max QR length and max container size boundaries
+ok 4 - max QR length and max container size boundaries
+  ---
+  duration_ms: 0.188064
+  type: 'test'
+  ...
+# Subtest: packed bitmap bit order, alpha and sequence wrap
+ok 5 - packed bitmap bit order, alpha and sequence wrap
+  ---
+  duration_ms: 1.16163
+  type: 'test'
+  ...
+# Subtest: packed format validates length/header/side/sequence/count
+ok 6 - packed format validates length/header/side/sequence/count
+  ---
+  duration_ms: 0.348816
+  type: 'test'
+  ...
+# Subtest: version-40 packed batch reduces pixel bytes about 32-fold
+ok 7 - version-40 packed batch reduces pixel bytes about 32-fold
+  ---
+  duration_ms: 6.358178
+  type: 'test'
+  ...
+# Subtest: no tracking, periodic full search, stale tracking, resolution change, loss reacquire
+ok 8 - no tracking, periodic full search, stale tracking, resolution change, loss reacquire
+  ---
+  duration_ms: 0.209515
+  type: 'test'
+  ...
+# Subtest: tracking follows all edges without clipping outside camera
+ok 9 - tracking follows all edges without clipping outside camera
+  ---
+  duration_ms: 0.402075
+  type: 'test'
+  ...
+# Subtest: ROI results map back to original video coordinates
+ok 10 - ROI results map back to original video coordinates
+  ---
+  duration_ms: 0.381504
+  type: 'test'
+  ...
+# Subtest: EC capacities
+ok 11 - EC capacities
+  ---
+  duration_ms: 0.173471
+  type: 'test'
+  ...
+# Subtest: deduplicate and pin first session
+ok 12 - deduplicate and pin first session
+  ---
+  duration_ms: 0.509087
+  type: 'test'
+  ...
+# Subtest: batch size at most 8 and ordered requests
+ok 13 - batch size at most 8 and ordered requests
+  ---
+  duration_ms: 0.494525
+  type: 'test'
+  ...
+# Subtest: bounded queue under a stalled connection
+ok 14 - bounded queue under a stalled connection
+  ---
+  duration_ms: 1.931099
+  type: 'test'
+  ...
+# Subtest: transient network/503 failure preserves same batch and retries
+ok 15 - transient network/503 failure preserves same batch and retries
+  ---
+  duration_ms: 0.320763
+  type: 'test'
+  ...
+# Subtest: 408 and 429 are retryable, 400/403/404 are fatal
+ok 16 - 408 and 429 are retryable, 400/403/404 are fatal
+  ---
+  duration_ms: 0.7298
+  type: 'test'
+  ...
+# Subtest: only one POST in flight
+ok 17 - only one POST in flight
+  ---
+  duration_ms: 0.167382
+  type: 'test'
+  ...
+# Subtest: stop aborts request and late reply cannot update new session
+ok 18 - stop aborts request and late reply cannot update new session
+  ---
+  duration_ms: 0.174683
+  type: 'test'
+  ...
+# Subtest: completion callback may stop queue safely
+ok 19 - completion callback may stop queue safely
+  ---
+  duration_ms: 0.132139
+  type: 'test'
+  ...
+# Subtest: dedup history stays bounded after long transfer
+ok 20 - dedup history stays bounded after long transfer
+  ---
+  duration_ms: 8.549599
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 90.985123

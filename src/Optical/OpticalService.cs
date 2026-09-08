@@ -22,7 +22,10 @@ namespace Ferry
             { 500, 1000, 1465, 1850, 2331, 2953 };
 
         private readonly object _gate = new object();
-        private OpticalSession _active;
+        // A remote command can reach more than one display. Do not invalidate
+        // another display's token when a new display starts.
+        private readonly Dictionary<string, OpticalSession> _sessions =
+            new Dictionary<string, OpticalSession>(StringComparer.Ordinal);
 
         public OpticalStartResult Start(
             FolderSnapshot source,
@@ -57,7 +60,12 @@ namespace Ferry
                 selectedNames,
                 MaximumFiles,
                 MaximumBundleBytes);
-            frameBytes = RaiseFrameBytesIfNeeded(payload.Bytes.Length, frameBytes);
+            frameBytes = Math.Min(frameBytes, MaximumBytesForCorrection(errorCorrection));
+            // Tiny transfers need not be padded into a version-40 QR.
+            frameBytes = Math.Max(MinimumFrameBytes,
+                Math.Min(frameBytes, payload.Bytes.Length + FrameHeaderLength));
+            frameBytes = RaiseFrameBytesIfNeeded(payload.Bytes.Length, frameBytes,
+                MaximumBytesForCorrection(errorCorrection));
             var session = new OpticalSession(
                 payload,
                 frameBytes,
@@ -67,13 +75,25 @@ namespace Ferry
 
             lock (_gate)
             {
-                _active = session;
+                PruneSessions();
+                if (_sessions.Count >= 4)
+                {
+                    throw new ArgumentException("QR 表示が多すぎます。不要な表示を閉じてください。");
+                }
+                _sessions.Add(session.Describe().Token, session);
             }
 
             return session.Describe();
         }
 
-        private static int RaiseFrameBytesIfNeeded(int payloadLength, int requestedFrameBytes)
+        private static int MaximumBytesForCorrection(string correction)
+        {
+            // QR version 40, byte mode, without ECI (same as CreateQr).
+            return correction == "H" ? 1273 : correction == "Q" ? 1663
+                : correction == "M" ? 2331 : 2953;
+        }
+
+        private static int RaiseFrameBytesIfNeeded(int payloadLength, int requestedFrameBytes, int maximum)
         {
             if (FitsInOneStream(payloadLength, requestedFrameBytes))
             {
@@ -82,14 +102,18 @@ namespace Ferry
 
             foreach (var offered in FrameBytesOptions)
             {
-                if (offered >= requestedFrameBytes && FitsInOneStream(payloadLength, offered))
+                if (offered >= requestedFrameBytes && offered <= maximum && FitsInOneStream(payloadLength, offered))
                 {
                     return offered;
                 }
             }
 
+            if (FitsInOneStream(payloadLength, maximum))
+            {
+                return maximum;
+            }
             throw new ArgumentException(
-                "選んだ内容は光学転送1本に収まりません。ファイルを分けてください。");
+                "選んだ内容はこの誤り訂正では光学転送1本に収まりません。ファイルを分けてください。");
         }
 
         private static bool FitsInOneStream(int payloadLength, int frameBytes)
@@ -116,7 +140,7 @@ namespace Ferry
             OpticalSession session;
             lock (_gate)
             {
-                session = _active;
+                session = FindSession(token);
             }
 
             if (session == null || !session.Matches(token))
@@ -137,7 +161,7 @@ namespace Ferry
             OpticalSession session;
             lock (_gate)
             {
-                session = _active;
+                session = FindSession(token);
             }
 
             if (session == null || !session.Matches(token))
@@ -154,11 +178,46 @@ namespace Ferry
         {
             lock (_gate)
             {
-                if (_active != null && _active.Matches(token))
+                if (!string.IsNullOrEmpty(token))
                 {
-                    _active = null;
+                    _sessions.Remove(token);
                 }
             }
+        }
+
+        public bool TryRenderPackedFrames(string token, uint sequence, int count, out byte[] packed)
+        {
+            if (count < 1 || count > 16)
+            {
+                throw new ArgumentException("QR の先読み枚数が正しくありません。", "count");
+            }
+            OpticalSession session;
+            lock (_gate) { session = FindSession(token); }
+            packed = session == null ? null : session.RenderPackedFrames(sequence, count);
+            return packed != null;
+        }
+
+        private OpticalSession FindSession(string token)
+        {
+            PruneSessions();
+            OpticalSession session;
+            if (string.IsNullOrEmpty(token) || !_sessions.TryGetValue(token, out session))
+            {
+                return null;
+            }
+            session.LastUsedUtc = DateTime.UtcNow;
+            return session;
+        }
+
+        private void PruneSessions()
+        {
+            var expired = new List<string>();
+            foreach (var entry in _sessions)
+            {
+                if (DateTime.UtcNow - entry.Value.LastUsedUtc > TimeSpan.FromMinutes(10))
+                    expired.Add(entry.Key);
+            }
+            foreach (var token in expired) _sessions.Remove(token);
         }
 
         internal static uint FountainSweepDigest()
@@ -209,6 +268,7 @@ namespace Ferry
             string errorCorrection)
         {
             _token = Guid.NewGuid().ToString("N");
+            LastUsedUtc = DateTime.UtcNow;
             _sessionId = NewSessionId();
             _frameBytes = frameBytes;
             _framesPerSecond = framesPerSecond;
@@ -230,6 +290,7 @@ namespace Ferry
             OriginalBytes = payload.OriginalBytes;
         }
 
+        public DateTime LastUsedUtc { get; set; }
         public string Label { get; private set; }
         public int FileCount { get; private set; }
         public long OriginalBytes { get; private set; }
@@ -279,6 +340,37 @@ namespace Ferry
             QRCode qr;
             Encode(sequence, out frame, out qr);
             return RenderRgba(qr.Matrix, QuietZone);
+        }
+
+        // Local HTTP transport only; the bytes encoded in the optical QR are unchanged.
+        // FQR1 | side:u16 LE | count:u16 LE | firstSequence:u32 LE | bitmaps.
+        // Each bitmap is row-major, MSB first, one black=1 bit per module, quiet zone included.
+        public byte[] RenderPackedFrames(uint sequence, int count)
+        {
+            var side = 17 + 4 * _qrVersion + QuietZone * 2;
+            var stride = (side * side + 7) / 8;
+            var result = new byte[checked(12 + stride * count)];
+            result[0] = 0x46; result[1] = 0x51; result[2] = 0x52; result[3] = 0x31;
+            WriteUInt16(result, 4, checked((ushort)side));
+            WriteUInt16(result, 6, checked((ushort)count));
+            WriteUInt32(result, 8, sequence);
+            for (var frameIndex = 0; frameIndex < count; frameIndex++)
+            {
+                byte[] frame;
+                QRCode qr;
+                Encode(unchecked(sequence + (uint)frameIndex), out frame, out qr);
+                var offset = 12 + frameIndex * stride;
+                for (var y = 0; y < qr.Matrix.Height; y++)
+                {
+                    for (var x = 0; x < qr.Matrix.Width; x++)
+                    {
+                        if (qr.Matrix[x, y] == 0) continue;
+                        var bit = (y + QuietZone) * side + x + QuietZone;
+                        result[offset + bit / 8] |= (byte)(0x80 >> (bit % 8));
+                    }
+                }
+            }
+            return result;
         }
 
         internal static byte[] RenderTextQr(string value)

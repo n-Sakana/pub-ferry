@@ -5,3 +5,5 @@ output/
 *.user
 *.suo
 .DS_Store
+tests/generated/
+tests/__pycache__/

@@ -1,0 +1,54 @@
+PASS new worker initializes the bundled WASM
+CASE center True True
+CASE top_left True True
+CASE top_right True True
+CASE bottom_left True True
+CASE bottom_right True True
+CASE off_center True True
+CASE rotate_15 True True
+CASE rotate_30 True True
+CASE perspective True True
+CASE blur_08 True True
+CASE blur_12 False True
+CASE small_300 True True
+CASE small_250 True True
+CASE small_200 False True
+CASE multiple_qr True True
+PASS new default decodes center, all four edges and off-center
+PASS transfer QR selected in the presence of a pairing/link QR
+PASS blank and non-transfer QR never enter receive upload
+PASS worker session pin ignores other transfers while accepting the active one
+PASS tracked crop returns identical frame bytes (15 timed samples after warm-up)
+PASS WASM initialization failure produces a fatal result, not a camera miss
+PASS initial screen, default settings and three-page navigation
+PASS EC change disables invalid QR capacities and selects a valid amount
+PASS packed QR sender renders and remains visible after desktop/portrait/landscape resize
+PASS closing QR stops its server token
+PASS a tiny actual frame does not reduce the next transfer payload setting
+PASS canvas camera -> real WASM -> bounded uploads -> completion survives a 503 response
+PASS camera restart gets a new receiver ID; stopping camera clears its stream
+PASS camera denial produces one permission attempt, not an unconditional retry
+PASS remote folder metadata polling does not stop an active QR display
+{
+  "browser": "144.0.7559.96",
+  "success_counts": {
+    "old": 13,
+    "new": 15
+  },
+  "roi_benchmark": {
+    "region": {
+      "x": 0,
+      "y": 207,
+      "width": 693,
+      "height": 726,
+      "full": false
+    },
+    "camera_pixels": 1228800,
+    "roi_pixels": 503118,
+    "samples": 15,
+    "median_ms": {
+      "old_full": 10.0,
+      "new_roi": 5.0
+    }
+  }
+}
