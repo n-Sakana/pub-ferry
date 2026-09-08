@@ -1,0 +1,12 @@
+PASS JavaScript syntax: app.js / optical-core.js / qr-worker.js / zxing-reader.js / service-worker.js
+PASS Python browser test syntax
+PASS HTML IDs are unique; all literal getElementById targets exist
+PASS new worker dependencies are embedded and registered in StaticAssets / service worker
+PASS optical-core.js loads before app.js
+PASS tests are excluded from the application project
+PASS FountainEncoder / FountainMath / OpticalPayload source unchanged
+PASS OpticalFrame / FountainDecoder / OpticalPayloadReader source unchanged
+PASS all bundled library files and WASM unchanged byte-for-byte
+PASS original worker comparison fixture unchanged byte-for-byte
+NOT RUN C# compilation, C# regression suite, real server HTTP integration
+NOT RUN Windows PowerShell / WPF / WebView2 / physical camera / Tailnet / Office document conversion

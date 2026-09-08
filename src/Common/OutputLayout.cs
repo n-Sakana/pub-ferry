@@ -6,6 +6,7 @@ namespace Ferry
 {
     internal static class OutputLayout
     {
+        private static readonly object DirectoryGate = new object();
         public static string CreateRunDirectory(
             string outputRoot,
             FolderSnapshot source)
@@ -37,9 +38,12 @@ namespace Ferry
             Directory.CreateDirectory(root);
             var folderName = SafeFileName(targetName) + "_" +
                 DateTime.Now.ToString("yyyyMMdd-HHmm", CultureInfo.InvariantCulture);
-            var outputDirectory = FindAvailableDirectory(Path.Combine(root, folderName));
-            Directory.CreateDirectory(outputDirectory);
-            return outputDirectory;
+            lock (DirectoryGate)
+            {
+                var outputDirectory = FindAvailableDirectory(Path.Combine(root, folderName));
+                Directory.CreateDirectory(outputDirectory);
+                return outputDirectory;
+            }
         }
 
         private static string TargetName(FolderSnapshot source)

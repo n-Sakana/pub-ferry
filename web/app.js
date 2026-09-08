@@ -26,6 +26,9 @@
     activePage: null,
     opticalView: "send",
     opticalBusy: false,
+    opticalStartGeneration: 0,
+    screenWakeLock: null,
+    wakeLockPending: false,
     opticalSession: null,
     opticalRenderer: null,
     qrDisplaySize: 900,
@@ -36,7 +39,11 @@
     cameraRunning: false,
     cameraComplete: false,
     cameraHasDecoded: false,
-    cameraPostsInFlight: 0,
+    cameraUpload: null,
+    cameraTracking: null,
+    cameraLastResultId: -1,
+    cameraLastCaptureAt: 0,
+    cameraLastDecodedAt: 0,
     cameraFrameId: 0,
     cameraQuietTimer: null,
     cameraReceiverId: null,
@@ -51,6 +58,7 @@
     }
   };
 
+  var opticalCore = window.FerryOptical;
   var toast = document.getElementById("toast");
   var toastTimer = null;
   var cameraCanvas = document.createElement("canvas");
@@ -80,9 +88,7 @@
       showToast(errorMessage(error));
     }
 
-    if (state.role === "remote") {
-      startRemoteConnection();
-    } else if (state.role === "local") {
+    if (state.role === "local") {
       pollConnectedRemotes();
       loadRemoteEntry();
     }
@@ -105,6 +111,8 @@
     var hashPage = window.location.hash.replace(/^#/, "");
     var requestedPage = isPage(hashPage) ? hashPage : state.status && isPage(state.status.initialMode) ? state.status.initialMode : null;
     navigate(requestedPage || "optical", false);
+    // Do not accept remote commands before initial folder loading can overwrite them.
+    if (state.role === "remote") startRemoteConnection();
   }
 
   function wireNavigation() {
@@ -233,6 +241,11 @@
     });
     window.addEventListener("pagehide", disconnectRemote);
     window.addEventListener("pagehide", shutdownCamera);
+    window.addEventListener("pagehide", function () { stopOptical(true); });
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "visible" && (state.opticalSession || state.cameraRunning)) requestScreenWakeLock();
+    });
+    document.getElementById("errorCorrection").addEventListener("change", updateFrameAmountOptions);
     window.addEventListener("resize", function () {
       if (state.opticalRenderer) {
         sizeQrCanvas(state.opticalRenderer);
@@ -394,6 +407,7 @@
       resetReceivePanel();
     }
 
+    if (page !== "optical" && (state.opticalSession || state.opticalBusy)) stopOptical();
     state.activePage = page;
     document.querySelectorAll("[data-page-panel]").forEach(function (panel) {
       panel.hidden = panel.dataset.pagePanel !== page;
@@ -479,8 +493,8 @@
     element.classList.toggle("is-muted", !positive);
   }
 
-  function applyFolder(mode, snapshot) {
-    if (mode === "optical") {
+  function applyFolder(mode, snapshot, preserveTransfer) {
+    if (mode === "optical" && !preserveTransfer) {
       stopOptical();
     }
     var selectedSource = snapshot && snapshot.sourceKind !== "none" ? snapshot : null;
@@ -1077,6 +1091,8 @@
       return;
     }
 
+    if (state.opticalSession) stopOptical();
+    var startGeneration = ++state.opticalStartGeneration;
     setOpticalView("send");
     var button = document.getElementById("showQr");
     state.opticalBusy = true;
@@ -1086,10 +1102,10 @@
     try {
       var requestedFrameBytes = fromRemoteCommand
         ? Number(command.frameBytes)
-        : Number(document.getElementById("frameAmount").value || "2953");
+        : Number(document.getElementById("frameAmount").value || "1000");
       var framesPerSecond = fromRemoteCommand
         ? Number(command.framesPerSecond)
-        : Number(document.getElementById("frameRate").value || "60");
+        : Number(document.getElementById("frameRate").value || "30");
       var errorCorrection = fromRemoteCommand
         ? String(command.errorCorrection || "L")
         : String(document.getElementById("errorCorrection").value || "L");
@@ -1108,9 +1124,20 @@
           errorCorrection: errorCorrection
         })
       });
-      document.getElementById("frameAmount").value = String(result.frameBytes);
+      if (startGeneration !== state.opticalStartGeneration) {
+        fetch("/api/optical/stop", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: result.token })
+        }).catch(function () {});
+        return;
+      }
+      // Keep the selected budget after a tiny transfer; do not silently force
+      // the next, larger transfer to use the tiny transfer's actual frame size.
+      setActualFrameAmount(Math.max(result.frameBytes, Math.min(requestedFrameBytes,
+        opticalCore.maximumFrameBytes(result.errorCorrection || errorCorrection))));
       document.getElementById("frameRate").value = String(result.framesPerSecond);
       document.getElementById("errorCorrection").value = String(result.errorCorrection || errorCorrection);
+      updateFrameAmountOptions();
       if (!confirmLargeOptical(result)) {
         await requestJson("/api/optical/stop", {
           method: "POST",
@@ -1119,8 +1146,8 @@
         });
         return;
       }
-      requestScreenWakeLock();
       state.opticalSession = result;
+      requestScreenWakeLock();
       state.opticalPreviousFocus = document.activeElement;
       document.getElementById("qrProgress").textContent = "最初の QR を描画しています";
       document.getElementById("qrOverlay").hidden = false;
@@ -1149,112 +1176,125 @@
       "実際には、取りこぼしたフレームを噴水符号で補うぶん長くなります。\n\n転送を始めますか？");
   }
 
+  function setActualFrameAmount(value) {
+    var control = document.getElementById("frameAmount");
+    control.querySelectorAll("[data-actual]").forEach(function (option) { option.remove(); });
+    if (!Array.from(control.options).some(function (option) { return Number(option.value) === value; })) {
+      var option = document.createElement("option");
+      option.value = String(value);
+      option.textContent = Number(value).toLocaleString("ja-JP") + " bytes（自動調整）";
+      option.dataset.actual = "true";
+      control.appendChild(option);
+    }
+    control.value = String(value);
+  }
+
+  function updateFrameAmountOptions() {
+    var maximum = opticalCore.maximumFrameBytes(document.getElementById("errorCorrection").value);
+    var control = document.getElementById("frameAmount");
+    Array.from(control.options).forEach(function (option) { option.disabled = Number(option.value) > maximum; });
+    if (Number(control.value) > maximum) {
+      control.value = Array.from(control.options).filter(function (option) { return !option.disabled; })
+        .reduce(function (value, option) { return Math.max(value, Number(option.value)); }, 0).toString();
+    }
+  }
+
   function startQrRenderer(session) {
     var side = 17 + 4 * Number(session.qrVersion) + 8;
     var renderer = {
-      session: session,
-      side: side,
-      nextSequence: 0,
-      queue: [],
-      staging: document.createElement("canvas"),
-      interval: 1000 / session.framesPerSecond,
-      nextAt: performance.now(),
-      animationFrame: 0,
-      stopped: false
+      session: session, side: side, nextSequence: 0, queue: [],
+      staging: document.createElement("canvas"), interval: 1000 / session.framesPerSecond,
+      nextAt: performance.now(), animationFrame: 0, stopped: false,
+      batches: new Set(), pendingBatches: 0, drawn: 0, startedAt: 0, lastStatusAt: 0, lastImage: null
     };
     renderer.staging.width = side;
     renderer.staging.height = side;
     state.opticalRenderer = renderer;
     sizeQrCanvas(renderer);
-    pumpQrFrames(renderer, 3);
-
+    pumpQrFrames(renderer);
     var tick = function (now) {
-      if (!isCurrentQrRenderer(renderer)) {
-        return;
-      }
+      if (!isCurrentQrRenderer(renderer)) return;
       renderer.animationFrame = window.requestAnimationFrame(tick);
-      if (now < renderer.nextAt) {
-        return;
-      }
-
+      if (now < renderer.nextAt) return;
       var entry = renderer.queue[0];
-      if (!entry || !entry.image) {
-        renderer.nextAt = now + renderer.interval;
-        return;
-      }
-
+      if (!entry || !entry.image) return; // keep the last complete QR visible
       renderer.queue.shift();
-      pumpQrFrames(renderer, 1);
+      pumpQrFrames(renderer);
       drawQrFrame(renderer, entry.image);
-      var number = entry.sequence + 1;
-      document.getElementById("qrProgress").textContent =
-        "フレーム " + number.toLocaleString("ja-JP") +
-        " ・ 元ブロック " + session.sourceBlocks.toLocaleString("ja-JP") +
-        " ・ 最短 " + formatSeconds(session.minimumSeconds);
-      renderer.nextAt += renderer.interval;
-      if (now - renderer.nextAt > 3 * renderer.interval) {
-        renderer.nextAt = now + renderer.interval;
+      if (!renderer.startedAt) renderer.startedAt = now;
+      renderer.drawn++;
+      if (now - renderer.lastStatusAt >= 250) {
+        var actualFps = (renderer.drawn - 1) * 1000 / Math.max(1, now - renderer.startedAt);
+        document.getElementById("qrProgress").textContent =
+          "フレーム " + renderer.drawn.toLocaleString("ja-JP") +
+          " ・ 表示 " + actualFps.toFixed(1) + " / " + session.framesPerSecond + " fps" +
+          " ・ " + session.frameBytes.toLocaleString("ja-JP") + " B/QR" +
+          " ・ 元ブロック " + session.sourceBlocks.toLocaleString("ja-JP");
+        renderer.lastStatusAt = now;
       }
+      renderer.nextAt += renderer.interval;
+      // Do not rapidly flash several catch-up frames after a stalled request/tab.
+      if (renderer.nextAt <= now) renderer.nextAt = now + renderer.interval;
     };
     renderer.animationFrame = window.requestAnimationFrame(tick);
   }
 
-  function pumpQrFrames(renderer, maximum) {
-    for (var count = 0; count < maximum && renderer.queue.length < 3; count++) {
-      var entry = {
-        sequence: renderer.nextSequence >>> 0,
-        image: null,
-        failures: 0,
-        retryTimer: null
-      };
-      renderer.nextSequence = entry.sequence === 0xffffffff ? 0 : entry.sequence + 1;
-      renderer.queue.push(entry);
-      fetchQrFrame(renderer, entry);
+  function pumpQrFrames(renderer) {
+    while (isCurrentQrRenderer(renderer) && renderer.pendingBatches < 2 && renderer.queue.length < 24) {
+      var batch = { sequence: renderer.nextSequence >>> 0, entries: [], failures: 0, retryTimer: null, controller: null };
+      for (var index = 0; index < Math.min(8, 24 - renderer.queue.length); index++) {
+        batch.entries.push({ sequence: (batch.sequence + index) >>> 0, image: null });
+      }
+      renderer.nextSequence = (batch.sequence + batch.entries.length) >>> 0;
+      Array.prototype.push.apply(renderer.queue, batch.entries);
+      renderer.pendingBatches++;
+      renderer.batches.add(batch);
+      fetchQrBatch(renderer, batch);
     }
   }
 
-  function fetchQrFrame(renderer, entry) {
-    if (!isCurrentQrRenderer(renderer)) {
-      return;
-    }
-    var url = "/api/optical/frame?format=raster&token=" +
-      encodeURIComponent(renderer.session.token) + "&seq=" + entry.sequence;
-    fetch(url, { cache: "no-store" }).then(function (response) {
+  async function fetchQrBatch(renderer, batch) {
+    if (!isCurrentQrRenderer(renderer)) return;
+    batch.controller = new AbortController();
+    var timeout = window.setTimeout(function () { batch.controller.abort(); }, 10000);
+    try {
+      var response = await fetch("/api/optical/frames?token=" + encodeURIComponent(renderer.session.token) +
+        "&seq=" + batch.sequence + "&count=" + batch.entries.length,
+        { cache: "no-store", signal: batch.controller.signal });
       if (!response.ok) {
-        throw new Error("QR frame HTTP " + response.status);
+        var httpError = new Error("QR frame HTTP " + response.status);
+        httpError.status = response.status;
+        throw httpError;
       }
-      return response.arrayBuffer();
-    }).then(function (buffer) {
-      if (!isCurrentQrRenderer(renderer)) {
-        return;
-      }
-      var expected = renderer.side * renderer.side * 4;
-      if (buffer.byteLength !== expected) {
-        throw new Error("QR frame length " + buffer.byteLength + " / " + expected);
-      }
-      entry.image = new ImageData(new Uint8ClampedArray(buffer), renderer.side, renderer.side);
-    }).catch(function () {
-      if (!isCurrentQrRenderer(renderer)) {
-        return;
-      }
-      entry.failures++;
-      if (entry.failures >= 5) {
-        showToast("QR コードの表示を続けられませんでした。");
+      var buffer = await response.arrayBuffer();
+      if (!isCurrentQrRenderer(renderer)) return;
+      var frames = opticalCore.unpackFrames(buffer, renderer.side, batch.sequence, batch.entries.length);
+      frames.forEach(function (frame, index) {
+        batch.entries[index].image = new ImageData(frame.pixels, renderer.side, renderer.side);
+      });
+      renderer.batches.delete(batch);
+      renderer.pendingBatches--;
+      pumpQrFrames(renderer);
+    } catch (error) {
+      if (!isCurrentQrRenderer(renderer)) return;
+      if (error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) {
+        showToast("QR 表示のセッションが終了しました。もう一度開始してください。");
         stopOptical();
         return;
       }
-      if (renderer.queue[0] === entry) {
-        document.getElementById("qrProgress").textContent = "QR の通信を待っています…";
-      }
-      var delay = Math.min(800, 100 * Math.pow(2, entry.failures - 1));
-      entry.retryTimer = window.setTimeout(function () {
-        entry.retryTimer = null;
-        fetchQrFrame(renderer, entry);
-      }, delay);
-    });
+      batch.failures++;
+      document.getElementById("qrProgress").textContent = "QR の通信を再試行しています…（表示を保持中）";
+      batch.retryTimer = window.setTimeout(function () {
+        batch.retryTimer = null;
+        fetchQrBatch(renderer, batch);
+      }, Math.min(3000, 150 * Math.pow(2, Math.min(batch.failures - 1, 5))));
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }
 
   function drawQrFrame(renderer, image) {
+    renderer.lastImage = image;
     var stagingContext = renderer.staging.getContext("2d");
     stagingContext.putImageData(image, 0, 0);
     var canvas = document.getElementById("qrFrame");
@@ -1276,17 +1316,25 @@
       Number.parseFloat(overlayStyle.borderLeftWidth) +
       Number.parseFloat(overlayStyle.borderRightWidth);
     var containerWidth = overlay.getBoundingClientRect().width || window.innerWidth;
-    var viewportBudget = 0.9 * Math.min(window.innerWidth, window.innerHeight);
+    var verticalChrome = 70;
+    overlay.querySelectorAll(".qr-controls, .qr-progress, .qr-hint").forEach(function (element) {
+      if (getComputedStyle(element).display !== "none") verticalChrome += element.getBoundingClientRect().height + 12;
+    });
+    var viewportBudget = Math.max(1, Math.min(window.innerWidth - 36, window.innerHeight - verticalChrome));
     var containerBudget = Math.max(1, containerWidth - horizontalChrome);
     var cssBudget = Math.max(1, Math.min(
       viewportBudget,
       containerBudget,
       state.qrDisplaySize));
     var scale = Math.max(1, Math.floor((cssBudget * dpr) / renderer.side));
-    canvas.width = renderer.side * scale;
-    canvas.height = renderer.side * scale;
+    var pixelSide = renderer.side * scale;
+    if (canvas.width !== pixelSide || canvas.height !== pixelSide) {
+      canvas.width = pixelSide;
+      canvas.height = pixelSide;
+    }
     canvas.style.width = (canvas.width / dpr) + "px";
     canvas.style.height = (canvas.height / dpr) + "px";
+    if (renderer.lastImage) drawQrFrame(renderer, renderer.lastImage);
   }
 
   function isCurrentQrRenderer(renderer) {
@@ -1295,24 +1343,40 @@
   }
 
   async function requestScreenWakeLock() {
+    if (state.screenWakeLock || state.wakeLockPending || !navigator.wakeLock || document.visibilityState !== "visible") return;
+    state.wakeLockPending = true;
     try {
-      if (navigator.wakeLock) {
-        await navigator.wakeLock.request("screen");
-      }
-    } catch (error) {
-      // The upstream sender treats Wake Lock as best effort.
-    }
+      var lock = await navigator.wakeLock.request("screen");
+      if (!state.opticalSession && !state.cameraRunning) { await lock.release(); return; }
+      state.screenWakeLock = lock;
+      lock.addEventListener("release", function () {
+        if (state.screenWakeLock === lock) state.screenWakeLock = null;
+      });
+    } catch (_) {
+      // Best effort: unsupported browsers and battery-saving mode may refuse it.
+    } finally { state.wakeLockPending = false; }
   }
 
-  function stopOptical() {
+  function releaseScreenWakeLock() {
+    if (state.opticalSession || state.cameraRunning) return;
+    var lock = state.screenWakeLock;
+    state.screenWakeLock = null;
+    if (lock) lock.release().catch(function () {});
+  }
+
+  function stopOptical(unloading) {
+    state.opticalStartGeneration++;
     var renderer = state.opticalRenderer;
     state.opticalRenderer = null;
     if (renderer) {
       renderer.stopped = true;
       window.cancelAnimationFrame(renderer.animationFrame);
-      renderer.queue.forEach(function (entry) {
-        window.clearTimeout(entry.retryTimer);
+      renderer.batches.forEach(function (batch) {
+        window.clearTimeout(batch.retryTimer);
+        if (batch.controller) batch.controller.abort();
       });
+      renderer.batches.clear();
+      renderer.queue = [];
     }
     var session = state.opticalSession;
     state.opticalSession = null;
@@ -1320,7 +1384,10 @@
     if (overlay) {
       overlay.hidden = true;
     }
-    if (session) {
+    releaseScreenWakeLock();
+    if (session && unloading === true && navigator.sendBeacon) {
+      navigator.sendBeacon("/api/optical/stop", new Blob([JSON.stringify({ token: session.token })], { type: "application/json" }));
+    } else if (session) {
       fetch("/api/optical/stop", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1348,7 +1415,7 @@
       return;
     }
 
-    if (state.opticalSession) {
+    if (state.opticalSession || state.opticalBusy) {
       stopOptical();
     }
     setOpticalView("receive");
@@ -1356,7 +1423,11 @@
     state.cameraStarting = true;
     state.cameraComplete = false;
     state.cameraHasDecoded = false;
-    state.cameraPostsInFlight = 0;
+    state.cameraTracking = null;
+    state.cameraLastResultId = -1;
+    state.cameraLastCaptureAt = 0;
+    state.cameraLastDecodedAt = 0;
+    state.cameraFrameId = 0;
     var generation = ++state.cameraGeneration;
     setCameraLabel("カメラを準備しています…");
     updateOpticalAction();
@@ -1382,7 +1453,9 @@
           audio: false,
           video: Object.assign({}, constraints, { frameRate: { exact: captureFps } })
         });
-      } catch (_) {
+      } catch (error) {
+        if (generation !== state.cameraGeneration) return;
+        if (error.name !== "OverconstrainedError" && error.name !== "ConstraintNotSatisfiedError") throw error;
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: Object.assign({}, constraints, { frameRate: { ideal: captureFps } })
@@ -1394,9 +1467,8 @@
         return;
       }
 
-      if (!state.cameraReceiverId) {
-        state.cameraReceiverId = createRemoteId();
-      }
+      // A unique ID prevents a delayed POST/stop from an earlier start erasing this run.
+      state.cameraReceiverId = createRemoteId();
       await requestJson("/api/optical/receive/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1413,9 +1485,40 @@
       video.srcObject = stream;
       video.hidden = false;
       await video.play();
+      if (generation !== state.cameraGeneration) {
+        stream.getTracks().forEach(function (track) { track.stop(); });
+        return;
+      }
+      var receiverId = state.cameraReceiverId;
+      state.cameraUpload = new opticalCore.UploadQueue({
+        send: function (frames, signal) {
+          return requestJson("/api/optical/receive/frames", {
+            method: "POST", headers: { "Content-Type": "application/json" }, signal: signal,
+            body: JSON.stringify({ receiverId: receiverId, frames: frames.map(bytesToBase64),
+              openWhenDone: document.getElementById("receiveOpenFolder").getAttribute("aria-checked") === "true" })
+          }, 15000);
+        },
+        onProgress: function (result) {
+          if (generation === state.cameraGeneration && state.cameraRunning) applyReceiveProgress(result);
+        },
+        onTransient: function () {
+          if (generation === state.cameraGeneration && state.cameraRunning)
+            setCameraLabel("接続を再試行しています…（受信済みデータは保持）");
+        },
+        onFatal: function (error) {
+          if (generation === state.cameraGeneration) finishCameraError(errorMessage(error));
+        }
+      });
       startCameraWorkers(generation);
       state.cameraStarting = false;
       state.cameraRunning = true;
+      requestScreenWakeLock();
+      stream.getVideoTracks().forEach(function (track) {
+        track.addEventListener("ended", function () {
+          if (generation === state.cameraGeneration && state.cameraRunning)
+            finishCameraError("カメラが切断されました。接続を確認して再開してください。");
+        });
+      });
       document.getElementById("cameraPreview").classList.add("is-live");
       document.getElementById("cameraFrame").classList.add("is-live");
       reportCameraSettings();
@@ -1507,34 +1610,51 @@
 
   function startCameraWorkers(generation) {
     stopCameraWorkers();
-    var workerCount = Number(document.getElementById("cameraWorkers").value || "2");
+    state.cameraTracking = null;
+    var workerCount = Math.max(1, Math.min(3, Number(document.getElementById("cameraWorkers").value || "2")));
     for (var index = 0; index < workerCount; index++) {
       (function () {
         var worker = new Worker("/qr-worker.js?v=__FERRY_BUILD_ID__");
-        var slot = { worker: worker, busy: false, failed: false };
-        worker.onmessage = function (event) {
-          var message = event.data || {};
-          if (message.id === -1) {
-            return;
-          }
-          slot.busy = false;
-          if (generation !== state.cameraGeneration || !state.cameraRunning || !message.bytes) {
-            return;
-          }
-          var bytes = message.bytes instanceof Uint8Array
-            ? message.bytes
-            : new Uint8Array(message.bytes);
-          submitDecodedFrame(bytes, generation);
-        };
-        worker.onerror = function () {
+        var slot = { worker: worker, busy: false, failed: false, ready: false, frameId: -1, initTimer: null, region: null };
+        var fail = function () {
+          window.clearTimeout(slot.initTimer);
           slot.busy = false;
           slot.failed = true;
           worker.terminate();
-          if (generation === state.cameraGeneration
-              && state.cameraWorkers.every(function (candidate) { return candidate.failed; })) {
-            finishCameraError("QR 読み取り機能を読み込めませんでした。");
-          }
+          if (generation === state.cameraGeneration && state.cameraWorkers.indexOf(slot) >= 0 &&
+              state.cameraWorkers.every(function (candidate) { return candidate.failed; }))
+            finishCameraError("QR 読み取り機能を読み込めませんでした。画面を再読み込みしてください。");
         };
+        slot.initTimer = window.setTimeout(fail, 15000);
+        worker.onmessage = function (event) {
+          if (generation !== state.cameraGeneration || state.cameraWorkers.indexOf(slot) < 0) return;
+          var message = event.data || {};
+          if (message.fatal) { fail(); return; }
+          if (message.id === -1) {
+            window.clearTimeout(slot.initTimer);
+            slot.ready = message.ready === true;
+            if (!slot.ready) fail();
+            return;
+          }
+          if (message.id !== slot.frameId) return;
+          slot.busy = false;
+          if (!state.cameraRunning) return;
+          var bytes = message.bytes ? new Uint8Array(message.bytes) : null;
+          var frame = bytes && opticalCore.parseFrame(bytes);
+          if (frame && state.cameraUpload && state.cameraUpload.session &&
+              frame.session !== state.cameraUpload.session) frame = null;
+          if (message.id > state.cameraLastResultId) {
+            state.cameraLastResultId = message.id;
+            if (frame) {
+              state.cameraLastDecodedAt = performance.now();
+              var tracking = opticalCore.trackPosition(message.position, slot.region,
+                slot.videoWidth, slot.videoHeight, state.cameraLastDecodedAt);
+              if (tracking) state.cameraTracking = tracking;
+            } else if (state.cameraTracking) state.cameraTracking.misses++;
+          }
+          if (frame && state.cameraUpload) state.cameraUpload.push(bytes);
+        };
+        worker.onerror = fail;
         state.cameraWorkers.push(slot);
       })();
     }
@@ -1542,6 +1662,7 @@
 
   function stopCameraWorkers() {
     state.cameraWorkers.forEach(function (slot) {
+      window.clearTimeout(slot.initTimer);
       slot.worker.terminate();
     });
     state.cameraWorkers = [];
@@ -1567,71 +1688,35 @@
   }
 
   function captureCameraFrame(generation) {
-    var slot = state.cameraWorkers.find(function (candidate) {
-      return !candidate.busy && !candidate.failed;
-    });
-    if (!slot) {
-      return;
-    }
-
+    var slot = state.cameraWorkers.find(function (candidate) { return candidate.ready && !candidate.busy && !candidate.failed; });
+    if (!slot) return;
     var video = document.getElementById("cameraVideo");
-    var width = video.videoWidth;
-    var height = video.videoHeight;
-    if (!width || !height) {
-      return;
+    var width = video.videoWidth, height = video.videoHeight;
+    if (!width || !height) return;
+    var now = performance.now();
+    // Avoid burning CPU on blank video; immediately return to the capture rate on detection.
+    if ((!state.cameraTracking || now - state.cameraLastDecodedAt > 1200) && now - state.cameraLastCaptureAt < 65) return;
+    state.cameraLastCaptureAt = now;
+    var frameId = state.cameraFrameId++;
+    var region = opticalCore.scanRegion(width, height, state.cameraTracking, frameId, now);
+    if (cameraCanvas.width !== region.width || cameraCanvas.height !== region.height) {
+      cameraCanvas.width = region.width;
+      cameraCanvas.height = region.height;
     }
-    if (cameraCanvas.width !== width || cameraCanvas.height !== height) {
-      cameraCanvas.width = width;
-      cameraCanvas.height = height;
-    }
-
     try {
       var context = cameraCanvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(video, 0, 0, width, height);
-      var image = context.getImageData(0, 0, width, height);
+      context.drawImage(video, region.x, region.y, region.width, region.height, 0, 0, region.width, region.height);
+      var image = context.getImageData(0, 0, region.width, region.height);
       slot.busy = true;
-      slot.worker.postMessage({
-        id: state.cameraFrameId++,
-        buf: image.data.buffer,
-        w: width,
-        h: height
-      }, [image.data.buffer]);
+      slot.frameId = frameId;
+      slot.region = region;
+      slot.videoWidth = width;
+      slot.videoHeight = height;
+      slot.worker.postMessage({ id: frameId, buf: image.data.buffer, w: region.width, h: region.height,
+        session: state.cameraUpload && state.cameraUpload.session }, [image.data.buffer]);
     } catch (error) {
       slot.busy = false;
-      if (generation === state.cameraGeneration) {
-        finishCameraError(cameraErrorMessage(error));
-      }
-    }
-  }
-
-  async function submitDecodedFrame(bytes, generation) {
-    if (generation !== state.cameraGeneration
-        || !state.cameraRunning
-        || state.cameraComplete
-        || state.cameraPostsInFlight >= 4) {
-      return;
-    }
-
-    state.cameraPostsInFlight++;
-    try {
-      var result = await requestJson("/api/optical/receive/frame", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          receiverId: state.cameraReceiverId,
-          frame: bytesToBase64(bytes),
-          openWhenDone: document.getElementById("receiveOpenFolder").getAttribute("aria-checked") === "true"
-        })
-      });
-      if (generation === state.cameraGeneration && state.cameraRunning) {
-        applyReceiveProgress(result);
-      }
-    } catch (error) {
-      if (generation === state.cameraGeneration) {
-        finishCameraError(errorMessage(error));
-      }
-    } finally {
-      state.cameraPostsInFlight = Math.max(0, state.cameraPostsInFlight - 1);
+      if (generation === state.cameraGeneration) finishCameraError(cameraErrorMessage(error));
     }
   }
 
@@ -1669,6 +1754,7 @@
     setCameraLabel(result.complete ? "受信完了" : "QR を読み取っています…");
 
     if (!result.complete) {
+      armCameraQuietHint(state.cameraGeneration, 4000);
       return;
     }
 
@@ -1693,6 +1779,9 @@
 
   function stopCamera(clearServer, keepLabel) {
     state.cameraGeneration++;
+    if (state.cameraUpload) state.cameraUpload.stop();
+    state.cameraUpload = null;
+    state.cameraTracking = null;
     window.clearTimeout(state.cameraQuietTimer);
     state.cameraQuietTimer = null;
     document.getElementById("cameraNoSignal").hidden = true;
@@ -1703,6 +1792,7 @@
     state.cameraStream = null;
     state.cameraStarting = false;
     state.cameraRunning = false;
+    releaseScreenWakeLock();
     var helpDialog = document.getElementById("cameraHelpDialog");
     if (helpDialog.open) {
       helpDialog.close();
@@ -1755,16 +1845,17 @@
   function armCameraQuietHint(generation, delay) {
     window.clearTimeout(state.cameraQuietTimer);
     state.cameraQuietTimer = window.setTimeout(function () {
-      if (generation !== state.cameraGeneration || !state.cameraRunning || state.cameraComplete || state.cameraHasDecoded) {
+      if (generation !== state.cameraGeneration || !state.cameraRunning || state.cameraComplete) {
         return;
       }
       document.getElementById("cameraNoSignal").hidden = false;
+      if (state.cameraHasDecoded) setCameraLabel("QR を再探索しています…（受信済みデータは保持）");
     }, delay || 8000);
   }
 
   function dismissCameraQuietHint() {
     document.getElementById("cameraNoSignal").hidden = true;
-    if (state.cameraRunning && !state.cameraHasDecoded) {
+    if (state.cameraRunning && !state.cameraComplete) {
       armCameraQuietHint(state.cameraGeneration, 15000);
     }
   }
@@ -1890,8 +1981,8 @@
       if (action === "showQr") {
         body.files = Array.from(state.selections.optical);
         body.format = activeData("transferFormat", "transferFormat", "original");
-        body.frameBytes = Number(document.getElementById("frameAmount").value || "2953");
-        body.framesPerSecond = Number(document.getElementById("frameRate").value || "60");
+        body.frameBytes = Number(document.getElementById("frameAmount").value || "1000");
+        body.framesPerSecond = Number(document.getElementById("frameRate").value || "30");
         body.errorCorrection = String(document.getElementById("errorCorrection").value || "L");
         body.displaySize = Number(document.getElementById("qrDisplaySize").value || "900");
       }
@@ -2087,7 +2178,8 @@
     try {
       var snapshot = await requestJson("/api/folder?mode=optical");
       if (folderSignature(snapshot) !== state.folderSignatures.optical) {
-        applyFolder("optical", snapshot);
+        // The active QR payload is immutable. Metadata refresh must not close it.
+        applyFolder("optical", snapshot, true);
       }
     } catch (_) {
       // A transient tailnet pause leaves the last visible selection in place.
@@ -2218,18 +2310,34 @@
     });
   }
 
-  async function requestJson(url, options) {
-    var response = await fetch(url, options || {});
-    var body;
+  async function requestJson(url, options, timeoutMs) {
+    var settings = Object.assign({}, options || {});
+    var controller = timeoutMs ? new AbortController() : null;
+    var originalSignal = settings.signal;
+    var forwardAbort = function () { if (controller) controller.abort(); };
+    var timer = null;
+    if (controller) {
+      settings.signal = controller.signal;
+      if (originalSignal) {
+        if (originalSignal.aborted) controller.abort();
+        else originalSignal.addEventListener("abort", forwardAbort, { once: true });
+      }
+      timer = window.setTimeout(function () { controller.abort(); }, timeoutMs);
+    }
     try {
-      body = await response.json();
-    } catch (_) {
-      body = null;
+      var response = await fetch(url, settings);
+      var body;
+      try { body = await response.json(); } catch (_) { body = null; }
+      if (!response.ok || body === null) {
+        var error = new Error(body && body.error ? body.error : "Ferry に接続できませんでした。");
+        error.status = response.ok ? 502 : response.status;
+        throw error;
+      }
+      return body;
+    } finally {
+      window.clearTimeout(timer);
+      if (originalSignal && controller) originalSignal.removeEventListener("abort", forwardAbort);
     }
-    if (!response.ok) {
-      throw new Error(body && body.error ? body.error : "Ferry に接続できませんでした。");
-    }
-    return body;
   }
 
   function setListMessage(id, message, className) {

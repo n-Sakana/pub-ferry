@@ -9,6 +9,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="manifest" href="/manifest.webmanifest?v=__FERRY_BUILD_ID__">
   <link rel="stylesheet" href="/app.css?v=__FERRY_BUILD_ID__">
+  <script src="/optical-core.js?v=__FERRY_BUILD_ID__" defer></script>
   <script src="/app.js?v=__FERRY_BUILD_ID__" defer></script>
 </head>
 <body>
@@ -148,26 +149,26 @@
               </div>
               <div class="setting-row">
                 <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
-                  data-info-tip="既定は 2,953 bytes です。増やすほど1枚で多く送れますが、QRが細かくなり、カメラで読みにくくなります。">1 枚に載せる量</span>
+                  data-info-tip="既定は 1,000 bytes です。増やすほど1枚で多く送れますが、QRが細かくなり、カメラで読みにくくなります。">1 枚に載せる量</span>
                 <select class="setting-select" id="frameAmount" aria-label="1 枚に載せる量">
                   <option value="500">500 bytes</option>
-                  <option value="1000">1,000 bytes</option>
+                  <option value="1000" selected>1,000 bytes</option>
                   <option value="1465">1,465 bytes</option>
                   <option value="1850">1,850 bytes</option>
                   <option value="2331">2,331 bytes</option>
-                  <option value="2953" selected>2,953 bytes</option>
+                  <option value="2953">2,953 bytes</option>
                 </select>
               </div>
               <div class="setting-row">
                 <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
-                  data-info-tip="既定は 60 fps です。上げるほど速く送れますが、カメラが追いつかないときは 24 fps などへ下げます。">1 秒あたりの枚数</span>
+                  data-info-tip="既定は 30 fps です。60 fps は受信カメラと画面が追いつく場合に使います。途切れる場合は 24 fps に下げます。">1 秒あたりの枚数</span>
                 <select class="setting-select" id="frameRate" aria-label="1 秒あたりの枚数">
                   <option value="10">10 fps</option>
                   <option value="15">15 fps</option>
                   <option value="20">20 fps</option>
                   <option value="24">24 fps</option>
-                  <option value="30">30 fps</option>
-                  <option value="60" selected>60 fps</option>
+                  <option value="30" selected>30 fps</option>
+                  <option value="60">60 fps</option>
                 </select>
               </div>
               <div class="setting-row">
@@ -182,7 +183,7 @@
               </div>
               <div class="setting-row">
                 <span class="info-tip-target" tabindex="0" aria-describedby="infoTooltip"
-                  data-info-tip="既定は 900 px です。大きくすると遠くから読みやすくなります。受信側では QR がカメラの視野いっぱいに映る距離へ調整します。">QR の大きさ</span>
+                  data-info-tip="既定は 900 px です。大きくすると遠くから読みやすくなります。受信側では 白い余白を含め QR 全体が映るよう調整します。">QR の大きさ</span>
                 <label class="range-setting" for="qrDisplaySize">
                   <input id="qrDisplaySize" type="range" min="300" max="1200" step="50" value="900">
                   <output id="qrSizeSetting" for="qrDisplaySize">900 px</output>
@@ -401,7 +402,7 @@
       <button id="largerQr" type="button" aria-label="QR を大きくする">＋</button>
     </div>
     <p class="qr-progress mono" id="qrProgress" aria-live="polite">QR を準備しています</p>
-    <p class="qr-hint">受信側では、QR がカメラの視野いっぱいに映る距離へ近づけてください。</p>
+    <p class="qr-hint">受信側では白い余白まで QR 全体を映してください。中央に固定する必要はありません。</p>
   </section>
 
   <div class="info-tooltip" id="infoTooltip" role="tooltip" hidden></div>
