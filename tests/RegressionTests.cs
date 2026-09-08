@@ -173,8 +173,17 @@ namespace Ferry
         }
         private static void TestSelection()
         {
-            Throws<ArgumentException>(delegate { OpticalPayload.Build(_source, new[] { "sample.bin", "sample.bin" }, 2000, 64 * 1024 * 1024); });
-            Throws<ArgumentException>(delegate { OpticalPayload.Build(_source, new[] { "../outside.bin" }, 2000, 64 * 1024 * 1024); });
+            // Resolve() looks names up in the snapshot taken from the folder, so anything
+            // outside it simply is not there: the failure is FileNotFoundException, not
+            // ArgumentException. Duplicates are folded by the seen set rather than rejected.
+            // Verified on Windows 2026-09-08: "../outside.bin", an absolute path and a deep
+            // "../../.." traversal are all rejected this way.
+            Throws<FileNotFoundException>(delegate { OpticalPayload.Build(_source, new[] { "../outside.bin" }, 2000, 64 * 1024 * 1024); });
+            Throws<FileNotFoundException>(delegate { OpticalPayload.Build(_source, new[] { Path.Combine(_root, "outside.bin") }, 2000, 64 * 1024 * 1024); });
+            Throws<FileNotFoundException>(delegate { OpticalPayload.Build(_source, new[] { "../../../../../../Windows/win.ini" }, 2000, 64 * 1024 * 1024); });
+            Require(OpticalPayload.Build(_source, new[] { "sample.bin", "sample.bin" }, 2000, 64 * 1024 * 1024)
+                .Bytes.Length == OpticalPayload.Build(_source, new[] { "sample.bin" }, 2000, 64 * 1024 * 1024).Bytes.Length,
+                "duplicate selection was not folded");
         }
         private static void TestOutputDirectories()
         {
