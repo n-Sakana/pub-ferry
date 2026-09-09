@@ -1,0 +1,11 @@
+# Git がバイナリをテキストと誤認して改行を書き換えるのを止める。
+# 2026-09-10: fin-berth の自動 commit が zxing_reader-EOacYbLr.wasm を
+# CRLF 変換して壊し、QR デコーダが起動しなくなった。
+* -text
+*.wasm binary
+*.dll  binary
+*.exe  binary
+*.png  binary
+*.ico  binary
+*.zip  binary
+*.pdf  binary
