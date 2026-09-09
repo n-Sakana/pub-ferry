@@ -695,7 +695,7 @@ namespace Ferry
                 foreach (var encoded in encodedFrames)
                 {
                     try { frames.Add(Convert.FromBase64String(encoded)); }
-                    catch (FormatException exception)
+                    catch (System.FormatException exception)
                     { throw new ArgumentException("読み取った QR の内容が壊れています。", exception); }
                 }
                 var openWhenDone = ReadOptionalBool(body, "openWhenDone", true);
