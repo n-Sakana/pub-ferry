@@ -74,6 +74,7 @@
   wireControls();
   wireInfoTips();
   registerServiceWorker();
+  watchCameraChanges();
   setPickerDisabled(true);
   setListMessage("opticalFiles", "入力を読み込んでいます", "loading-state");
   setListMessage("markdownFiles", "入力を読み込んでいます", "loading-state");
@@ -478,14 +479,45 @@
     var capabilities = status && status.capabilities ? status.capabilities : {};
     setCapability("statusWord", capabilities.word ? "見つかった" : "なし", Boolean(capabilities.word));
     setCapability("statusOcr", capabilities.windowsOcr ? "対象" : "なし", Boolean(capabilities.windowsOcr));
-    var cameraApi = Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-    setCapability("statusCamera", cameraApi ? "ブラウザで確認" : "利用不可", cameraApi);
+    refreshCameraStatus();
     setPickerDisabled(!status || role !== "local");
     updateMarkdownAction();
     updateVbaAction();
     updateOpticalAction();
     updateOutputAction("markdown");
     updateOutputAction("vba");
+  }
+
+  // カメラは抜き差しされる。API の有無だけでなく実際の台数を数え、
+  // devicechange で数え直す。再起動しなくても付けた瞬間に表に出る。
+  function refreshCameraStatus() {
+    var api = Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    if (!api) {
+      setCapability("statusCamera", "利用不可", false);
+      return;
+    }
+    if (!navigator.mediaDevices.enumerateDevices) {
+      setCapability("statusCamera", "利用可能", true);
+      return;
+    }
+    navigator.mediaDevices.enumerateDevices().then(function (devices) {
+      var count = 0;
+      for (var i = 0; i < devices.length; i++) {
+        if (devices[i].kind === "videoinput") { count++; }
+      }
+      // 権限が無いと label は空になるが、台数は数えられる。
+      setCapability("statusCamera", count > 0 ? (count + " 台") : "なし", count > 0);
+      updateOpticalAction();
+    }).catch(function () {
+      setCapability("statusCamera", "利用可能", true);
+    });
+  }
+
+  function watchCameraChanges() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.addEventListener) { return; }
+    navigator.mediaDevices.addEventListener("devicechange", function () {
+      refreshCameraStatus();
+    });
   }
 
   function setCapability(id, text, positive) {
