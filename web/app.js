@@ -42,6 +42,7 @@
     cameraUpload: null,
     cameraTracking: null,
     cameraLastResultId: -1,
+    cameraWorkerReason: null,
     cameraLastCaptureAt: 0,
     cameraLastDecodedAt: 0,
     cameraFrameId: 0,
@@ -1616,24 +1617,28 @@
       (function () {
         var worker = new Worker("/qr-worker.js?v=__FERRY_BUILD_ID__");
         var slot = { worker: worker, busy: false, failed: false, ready: false, frameId: -1, initTimer: null, region: null };
-        var fail = function () {
+        var fail = function (reason) {
           window.clearTimeout(slot.initTimer);
           slot.busy = false;
           slot.failed = true;
           worker.terminate();
+          // The worker already knows why it died. Showing only the fixed sentence
+          // hid the real cause and left nothing to act on.
+          if (reason && !state.cameraWorkerReason) state.cameraWorkerReason = String(reason);
           if (generation === state.cameraGeneration && state.cameraWorkers.indexOf(slot) >= 0 &&
               state.cameraWorkers.every(function (candidate) { return candidate.failed; }))
-            finishCameraError("QR 読み取り機能を読み込めませんでした。画面を再読み込みしてください。");
+            finishCameraError("QR 読み取り機能を読み込めませんでした。画面を再読み込みしてください。"
+              + (state.cameraWorkerReason ? "（" + state.cameraWorkerReason + "）" : ""));
         };
         slot.initTimer = window.setTimeout(fail, 15000);
         worker.onmessage = function (event) {
           if (generation !== state.cameraGeneration || state.cameraWorkers.indexOf(slot) < 0) return;
           var message = event.data || {};
-          if (message.fatal) { fail(); return; }
+          if (message.fatal) { fail(message.error); return; }
           if (message.id === -1) {
             window.clearTimeout(slot.initTimer);
             slot.ready = message.ready === true;
-            if (!slot.ready) fail();
+            if (!slot.ready) fail(message.error);
             return;
           }
           if (message.id !== slot.frameId) return;
