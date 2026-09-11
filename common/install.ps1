@@ -1,4 +1,4 @@
-# common/install.ps1 -- build one .reg and import the Fin-Ferry menu (HKCU).
+﻿# common/install.ps1 -- build one .reg and import the Fin-Ferry menu (HKCU).
 # Dot-source loads functions only; direct run performs the install.
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
@@ -27,7 +27,8 @@ $script:MenuItems = @(
 $script:Contexts = @(
     "HKEY_CURRENT_USER\Software\Classes\*\shell",
     "HKEY_CURRENT_USER\Software\Classes\Directory\shell",
-    "HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell"
+    "HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell",
+    "HKEY_CURRENT_USER\Software\Classes\DesktopBackground\shell"
 )
 
 function ConvertTo-RegString {
@@ -64,12 +65,12 @@ function Get-MenuCommand {
     param([string]$Mode)
     if ($Mode -eq "optical") {
         $wscript = Join-Path $env:SystemRoot "System32\wscript.exe"
-        return ('"{0}" "{1}" "optical" "%V"' -f $wscript, $script:Launcher)
+        return ('"{0}" "{1}" "optical" "%1"' -f $wscript, $script:Launcher)
     }
 
     $powershell = Join-Path $env:SystemRoot (
         "System32\WindowsPowerShell\v1.0\powershell.exe")
-    return ('"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" --cli --path "%V" --mode "{2}"' -f
+    return ('"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" --cli --path "%1" --mode "{2}"' -f
         $powershell, $script:FerryScript, $Mode)
 }
 
@@ -94,7 +95,7 @@ function Build-RegistryLines {
         if ($Install) {
             $lines.Add("[" + $key + "]")
             $lines.Add('"MUIVerb"="' + (ConvertTo-RegString $script:MenuName) + '"')
-            if ($context -eq "HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell") {
+            if ($context -in @("HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell", "HKEY_CURRENT_USER\Software\Classes\DesktopBackground\shell")) {
                 $lines.Add("")
                 $lines.Add("[" + $key + "\command]")
                 $lines.Add('@="' + (ConvertTo-RegString (Get-AppCommand)) + '"')
@@ -145,7 +146,7 @@ function Invoke-Install {
         }
 
         Write-Host ""
-        Write-Host "Fin-Ferry was added to the file and folder context menus." -ForegroundColor Green
+        Write-Host "Fin-Ferry was added to file, folder, Explorer background and desktop background context menus." -ForegroundColor Green
         return $true
     }
     catch {

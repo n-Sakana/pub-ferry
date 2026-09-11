@@ -1,4 +1,4 @@
-# common/uninstall.ps1 -- interactively remove HKCU context-menu registrations.
+﻿# common/uninstall.ps1 -- interactively remove HKCU context-menu registrations.
 [CmdletBinding()]
 param(
     [switch]$ListOnly
@@ -26,6 +26,12 @@ $script:Contexts = @(
         Label = "Folder background"
         RelativePath = "Software\Classes\Directory\Background\shell"
         RegistryPath = "HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell"
+    },
+    [pscustomobject]@{
+        Id = "desktop"
+        Label = "Desktop background"
+        RelativePath = "Software\Classes\DesktopBackground\shell"
+        RegistryPath = "HKEY_CURRENT_USER\Software\Classes\DesktopBackground\shell"
     }
 )
 

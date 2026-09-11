@@ -1,4 +1,4 @@
-# Ferry
+﻿# Ferry
 
 > **このリポジトリは fork です。**
 > 上流の [bashalarmistalt/decimen-optical-transfer](https://github.com/bashalarmistalt/decimen-optical-transfer)
@@ -76,3 +76,11 @@ dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishSingleFil
 ```
 
 開発用ビルドに必要な SDK は .NET 9 です。
+
+## デスクトップ背景への対応
+
+この版では `install.bat` にデスクトップ背景の登録を追加しています。ファイル・フォルダ選択時は従来の光学転送／Markdown／VBA メニューを維持し、選択した対象を `%1` で渡します。エクスプローラの空白とデスクトップの空白では、対象パスを推測せず既存アプリ画面を直接起動します。
+
+更新後は `install.bat` を再実行してください。`uninstall.bat` の一覧・バックアップ・削除対象にもデスクトップ背景を追加しています。Windows 11 では従来形式の右クリックメニューから利用します。
+
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\test-desktop-context.ps1` で4種の登録定義、選択時引数、背景の直接起動、削除定義を確認できます。実際の Explorer 表示・起動は実機で確認してください。
